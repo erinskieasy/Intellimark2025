@@ -23,7 +23,10 @@ export default function ResultsStep() {
     detailedResults, 
     setStep, 
     resetTestGrader,
-    markScheme
+    markScheme,
+    excelFile,
+    columnMap,
+    capturedPages
   } = useTestGrader();
   
   // Handle back button
@@ -45,7 +48,7 @@ export default function ResultsStep() {
       setExportingPdf(true);
       
       // Get fresh student answers
-      const studentAnswers = capturedPages.reduce<Record<string, string>>((acc, page) => {
+      const studentAnswers = capturedPages.reduce<Record<string, string>>((acc: Record<string, string>, page: any) => {
         if (page.extractedAnswers) {
           return { ...acc, ...page.extractedAnswers };
         }
@@ -60,7 +63,7 @@ export default function ResultsStep() {
         console.log("Generating fresh results for PDF export");
         const freshResults = await generateFreshResults(excelFile, columnMap, studentAnswers);
         
-        tableData = freshResults.map(result => [
+        tableData = freshResults.map((result: any) => [
           result.questionNumber,
           result.studentAnswer || '—',
           result.expectedAnswer || '—',
@@ -69,8 +72,8 @@ export default function ResultsStep() {
         ]);
         
         // Calculate totals for summary
-        const totalPoints = freshResults.reduce((sum, r) => sum + r.points, 0);
-        const earnedPoints = freshResults.reduce((sum, r) => sum + r.earnedPoints, 0);
+        const totalPoints = freshResults.reduce((sum: number, r: any) => sum + r.points, 0);
+        const earnedPoints = freshResults.reduce((sum: number, r: any) => sum + r.earnedPoints, 0);
         const scorePercentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
         
         // Create a new PDF document
@@ -113,7 +116,7 @@ export default function ResultsStep() {
         doc.text(`Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`, 105, 25, { align: 'center' });
         
         // Add detailed results table
-        tableData = detailedResults.map(result => [
+        tableData = detailedResults.map((result: any) => [
           result.questionNumber,
           result.studentAnswer,
           result.expectedAnswer,
@@ -147,17 +150,45 @@ export default function ResultsStep() {
         return;
       }
       
-      const blob = await handleExportPDF();
+      // Try to get fresh results first if Excel file exists
+      let shareText = '';
       
+      if (excelFile && columnMap && capturedPages.length > 0) {
+        // Gather student answers from all pages
+        const studentAnswers = capturedPages.reduce<Record<string, string>>((acc: Record<string, string>, page: any) => {
+          if (page.extractedAnswers) {
+            return { ...acc, ...page.extractedAnswers };
+          }
+          return acc;
+        }, {});
+        
+        // Generate fresh results
+        const freshResults = await generateFreshResults(excelFile, columnMap, studentAnswers);
+        
+        // Calculate totals for sharing text
+        const totalPoints = freshResults.reduce((sum: number, r: any) => sum + r.points, 0);
+        const earnedPoints = freshResults.reduce((sum: number, r: any) => sum + r.earnedPoints, 0);
+        const scorePercentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+        
+        shareText = `Score: ${scorePercentage}% (${earnedPoints}/${totalPoints} points) [Fresh data]`;
+      } else {
+        // Fall back to stored results
+        shareText = `Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`;
+      }
+      
+      // Generate PDF (will also generate new result data)
+      await handleExportPDF();
+      
+      // Share the result text
       await navigator.share({
         title: 'Test Results',
-        text: `Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`,
+        text: shareText,
         // files: [new File([blob], 'test-results.pdf', { type: 'application/pdf' })]
       });
     } catch (error) {
       console.error('Error sharing results:', error);
     }
-  }, [testResult, handleExportPDF]);
+  }, [testResult, handleExportPDF, excelFile, columnMap, capturedPages]);
   
   if (!testResult) {
     return (
