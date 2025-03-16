@@ -96,7 +96,7 @@ export default function ProcessStep() {
                 </div>
                 <div className="p-4 max-h-60 overflow-y-auto">
                   <div className="grid grid-cols-4 gap-2">
-                    {Object.entries(capturedPages.reduce((acc, page) => {
+                    {Object.entries(capturedPages.reduce<Record<string, string>>((acc, page) => {
                       if (page.extractedAnswers) {
                         return { ...acc, ...page.extractedAnswers };
                       }
@@ -104,7 +104,7 @@ export default function ProcessStep() {
                     }, {})).sort(([a], [b]) => Number(a) - Number(b)).map(([questionNumber, answer]) => (
                       <div key={questionNumber} className="border border-gray-200 rounded-lg p-2 flex flex-col items-center">
                         <span className="text-xs text-gray-500">Q{questionNumber}</span>
-                        <span className="text-lg font-medium text-gray-800">{answer}</span>
+                        <span className="text-lg font-medium text-gray-800">{String(answer)}</span>
                       </div>
                     ))}
                   </div>

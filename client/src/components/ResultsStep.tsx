@@ -12,6 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -20,7 +21,8 @@ export default function ResultsStep() {
     testResult, 
     detailedResults, 
     setStep, 
-    resetTestGrader 
+    resetTestGrader,
+    markScheme
   } = useTestGrader();
   
   // Handle back button
@@ -101,6 +103,11 @@ export default function ResultsStep() {
   if (!testResult) {
     return (
       <div className="bg-white rounded-lg shadow-md p-5">
+        {/* Mark Scheme Preview in empty state */}
+        <div className="mb-5">
+          <MarkSchemePreview markScheme={markScheme} />
+        </div>
+        
         <div className="text-center py-8">
           <span className="material-icons text-4xl text-yellow-500 mb-2">warning</span>
           <h3 className="text-base font-medium text-gray-800 mb-1">No Results Available</h3>
@@ -127,6 +134,11 @@ export default function ResultsStep() {
           <span className="material-icons mr-1 text-sm">share</span>
           Share
         </Button>
+      </div>
+      
+      {/* Mark Scheme Preview */}
+      <div className="mb-5">
+        <MarkSchemePreview markScheme={markScheme} />
       </div>
       
       {/* Score Summary */}
