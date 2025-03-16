@@ -6,7 +6,7 @@ import { useTestGraderActions } from '@/hooks/use-test-grader';
 import { useToast } from '@/hooks/use-toast';
 import { dataURLtoBlob } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-
+import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function CaptureStep() {
   const [isCapturing, setIsCapturing] = useState(true);

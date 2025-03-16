@@ -4,7 +4,7 @@ import { useTestGrader } from '@/context/TestGraderContext';
 import { useTestGraderActions } from '@/hooks/use-test-grader';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-
+import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function ProcessStep() {
   const { 
