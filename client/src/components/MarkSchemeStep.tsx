@@ -490,7 +490,7 @@ export default function MarkSchemeStep() {
       
       {/* Column Mapping Dialog */}
       <Dialog open={columnMappingDialogOpen} onOpenChange={setColumnMappingDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Map Excel Columns</DialogTitle>
             <DialogDescription>
