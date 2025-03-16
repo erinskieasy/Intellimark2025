@@ -12,25 +12,27 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Initialize once on mount
   useEffect(() => {
     let mounted = true;
     let videoStream: MediaStream | null = null;
-    
+
     const startCamera = async () => {
       try {
         console.log("Simple camera: starting initialization");
-        
+
         // Request camera access with minimal constraints
         const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: {
+            facingMode: { ideal: 'environment' }
+          },
           audio: false,
         });
-        
+
         // Store in local variable
         videoStream = cameraStream;
-        
+
         // If component was unmounted during async operation, cleanup and exit
         if (!mounted) {
           console.log("Simple camera: component unmounted during initialization");
@@ -39,10 +41,10 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
           }
           return;
         }
-        
+
         // Store in state
         setStream(videoStream);
-        
+
         // Connect to video element
         if (videoRef.current) {
           videoRef.current.srcObject = videoStream;
@@ -55,15 +57,15 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
         }
       }
     };
-    
+
     // Start camera with a slight delay to ensure DOM is ready
     const timerId = setTimeout(startCamera, 800);
-    
+
     // Cleanup function
     return () => {
       mounted = false;
       clearTimeout(timerId);
-      
+
       // Stop any active tracks
       if (videoStream) {
         console.log("Simple camera: stopping tracks on unmount");
@@ -71,45 +73,45 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
       }
     };
   }, []);
-  
+
   // Handle video events
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     const handleCanPlay = () => {
       console.log("Simple camera: video can play now");
       setIsReady(true);
     };
-    
+
     const handleError = () => {
       console.error("Simple camera: video element error");
       setError("Video playback error. Please try again.");
     };
-    
+
     // Register event listeners
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleError);
-    
+
     return () => {
       // Cleanup listeners
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
     };
   }, []);
-  
+
   // Capture image
   const captureImage = () => {
     if (!videoRef.current || !isReady) return;
-    
+
     try {
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
-      
+
       // Set canvas dimensions to match video
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
-      
+
       // Draw current video frame to canvas
       const ctx = canvas.getContext('2d');
       if (ctx) {
@@ -122,7 +124,7 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
       setError("Failed to capture image");
     }
   };
-  
+
   return (
     <div className={cn("relative overflow-hidden rounded-lg bg-gray-900", className)}>
       {error ? (
@@ -144,13 +146,13 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
             muted
             className="w-full h-full object-cover"
           />
-          
+
           {!isReady && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/70">
               <p className="text-white">Starting camera...</p>
             </div>
           )}
-          
+
           <div className="absolute bottom-4 inset-x-0 flex justify-center">
             <Button
               onClick={captureImage}
