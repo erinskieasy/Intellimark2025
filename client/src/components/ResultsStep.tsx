@@ -15,6 +15,8 @@ import 'jspdf-autotable';
 import { MarkSchemePreview } from './MarkSchemePreview';
 import { useToast } from '@/hooks/use-toast';
 
+import { useEffect } from 'react';
+
 export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const { toast } = useToast();
