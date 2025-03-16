@@ -229,10 +229,15 @@ export default function MarkSchemeStep() {
     }
 
     // Check if all required columns are selected
-    if (!columnMapping.questionNumberCol || !columnMapping.expectedAnswerCol || !columnMapping.pointsCol) {
+    const missingColumns = [];
+    if (!columnMapping.questionNumberCol) missingColumns.push('Question Number');
+    if (!columnMapping.expectedAnswerCol) missingColumns.push('Expected Answer');
+    if (!columnMapping.pointsCol) missingColumns.push('Points');
+
+    if (missingColumns.length > 0) {
       toast({
         title: 'Column Mapping Incomplete',
-        description: 'Please select columns for all required fields.',
+        description: `Missing columns: ${missingColumns.join(', ')}`,
         variant: 'destructive'
       });
       return;
