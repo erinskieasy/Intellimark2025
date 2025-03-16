@@ -30,7 +30,8 @@ export default function ResultsStep() {
     clearCapturedPages,
     setTestResult,
     setDetailedResults,
-    currentTest
+    currentTest,
+    setCurrentTest
   } = useTestGrader();
 
   // Fetch fresh results when component mounts or test result changes
@@ -42,22 +43,22 @@ export default function ResultsStep() {
         setDetailedResults([]);
         return;
       }
-      
+
       try {
         console.log(`Fetching fresh detailed results for test ${currentTest.id}`);
         const detailedRes = await fetch(`/api/results/${currentTest.id}/detailed`, {
           credentials: 'include'
         });
-        
+
         if (!detailedRes.ok) {
           console.error(`Error fetching detailed results: ${detailedRes.statusText}`);
           setDetailedResults([]);
           return;
         }
-        
+
         const freshDetailedResults = await detailedRes.json();
         console.log(`Received ${freshDetailedResults.length} detailed results`);
-        
+
         // Use a timeout to ensure React batch updates work correctly
         setTimeout(() => {
           setDetailedResults(freshDetailedResults);
@@ -145,7 +146,7 @@ export default function ResultsStep() {
       console.error('Error sharing results:', error);
     }
   }, [testResult, handleExportPDF]);
-  
+
   // Handle next paper button
   const handleNextPaper = useCallback(async () => {
     try {
@@ -162,27 +163,27 @@ export default function ResultsStep() {
             totalPoints: currentTest.totalPoints
           })
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to create new test');
         }
-        
+
         const newTest = await response.json();
         setCurrentTest(newTest);
       }
 
       // Clear captured pages and reset processing state
       clearCapturedPages();
-      
+
       // Force reset of results state
       setTestResult(null);
       setDetailedResults([]);
-      
+
       toast({
         title: 'Ready for next paper',
         description: 'New test created and previous results cleared.'
       });
-      
+
       // Navigate to capture page
       setStep('capture');
     } catch (error) {
