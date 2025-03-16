@@ -207,7 +207,10 @@ export default function ResultsStep() {
         </Button>
         <div className="flex space-x-3">
           <Button
-            onClick={() => setStep('capture')}
+            onClick={() => {
+              localStorage.setItem('shouldClearCaptures', 'true');
+              setStep('capture');
+            }}
             variant="secondary"
             className="bg-gray-800 hover:bg-gray-900 text-white"
           >
