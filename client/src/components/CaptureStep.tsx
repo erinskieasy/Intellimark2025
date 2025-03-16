@@ -5,11 +5,13 @@ import { useTestGrader } from '@/context/TestGraderContext';
 import { useTestGraderActions } from '@/hooks/use-test-grader';
 import { useToast } from '@/hooks/use-toast';
 import { dataURLtoBlob } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function CaptureStep() {
   const [isCapturing, setIsCapturing] = useState(true);
   const { toast } = useToast();
-  const { capturedPages, currentTest, setStep } = useTestGrader();
+  const isMobile = useIsMobile();
+  const { capturedPages, currentTest, setStep, removeCapturedPage } = useTestGrader();
   const { captureImageMutation } = useTestGraderActions();
   
   // Handle image capture
@@ -23,10 +25,27 @@ export default function CaptureStep() {
       return;
     }
     
+    // Show temporary toast for visual feedback
+    toast({
+      title: 'Processing image...',
+      description: 'Please wait while we process your image.',
+    });
+    
     captureImageMutation.mutate({
       imageData,
       pageNumber: capturedPages.length + 1,
       testId: currentTest.id
+    }, {
+      onSuccess: () => {
+        // Success toast shown by the mutation already
+      },
+      onError: (error) => {
+        toast({
+          title: 'Error capturing image',
+          description: error instanceof Error ? error.message : 'Failed to process the captured image.',
+          variant: 'destructive'
+        });
+      }
     });
   }, [captureImageMutation, capturedPages.length, currentTest, toast]);
   
@@ -34,6 +53,11 @@ export default function CaptureStep() {
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !currentTest?.id) return;
+    
+    toast({
+      title: 'Loading image...',
+      description: 'Please wait while we load your image.',
+    });
     
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -44,11 +68,20 @@ export default function CaptureStep() {
         testId: currentTest.id!
       });
     };
+    
+    reader.onerror = () => {
+      toast({
+        title: 'Error loading image',
+        description: 'Failed to load the selected image. Please try again with a different image.',
+        variant: 'destructive'
+      });
+    };
+    
     reader.readAsDataURL(file);
     
     // Reset the input value so the same file can be selected again
     event.target.value = '';
-  }, [captureImageMutation, capturedPages.length, currentTest]);
+  }, [captureImageMutation, capturedPages.length, currentTest, toast]);
   
   // Handle delete image
   const handleDeleteImage = useCallback((pageNumber: number) => {
@@ -57,10 +90,14 @@ export default function CaptureStep() {
     
     // Confirm before deleting
     if (confirm(`Are you sure you want to delete page ${pageNumber}?`)) {
-      // Use the removeCapturedPage from context
-      useTestGrader().removeCapturedPage(pageNumber);
+      removeCapturedPage(pageNumber);
+      
+      toast({
+        title: 'Page deleted',
+        description: `Page ${pageNumber} has been removed.`,
+      });
     }
-  }, [capturedPages]);
+  }, [capturedPages, removeCapturedPage, toast]);
   
   // Handle back button
   const handleBack = useCallback(() => {
@@ -81,6 +118,11 @@ export default function CaptureStep() {
     setStep('process');
   }, [capturedPages.length, setStep, toast]);
   
+  // Toggle camera visibility
+  const toggleCamera = useCallback(() => {
+    setIsCapturing(prev => !prev);
+  }, []);
+  
   return (
     <div className="bg-white rounded-lg shadow-md p-5">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Capture Answer Sheets</h2>
@@ -88,12 +130,35 @@ export default function CaptureStep() {
         Use your camera to capture each page of the student's answer sheet. Make sure the answers are clearly visible.
       </p>
       
+      {/* Camera visibility toggle */}
+      <div className="flex justify-end mb-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleCamera}
+          className="text-xs"
+        >
+          {isCapturing ? (
+            <>
+              <span className="material-icons mr-1 text-sm">visibility_off</span>
+              Hide Camera
+            </>
+          ) : (
+            <>
+              <span className="material-icons mr-1 text-sm">visibility</span>
+              Show Camera
+            </>
+          )}
+        </Button>
+      </div>
+      
       {/* Camera Interface */}
       {isCapturing && (
         <div className="mb-6 rounded-lg overflow-hidden border border-gray-200">
           <Webcam 
             onCapture={handleCapture}
-            aspectRatio={3/4}
+            // Don't set a fixed aspect ratio to improve compatibility
+            withFacingToggle={true}
           />
         </div>
       )}
@@ -106,13 +171,14 @@ export default function CaptureStep() {
         </div>
         
         {capturedPages.length > 0 ? (
-          <div className="grid grid-cols-3 gap-3">
+          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
             {capturedPages.map((page) => (
               <div key={page.pageNumber} className="aspect-[3/4] bg-gray-100 rounded-lg relative overflow-hidden shadow-sm">
                 <img 
                   src={page.imageData} 
                   alt={`Captured answer sheet page ${page.pageNumber}`} 
                   className="w-full h-full object-cover"
+                  loading="lazy" 
                 />
                 <button 
                   onClick={() => handleDeleteImage(page.pageNumber)}
@@ -129,7 +195,7 @@ export default function CaptureStep() {
         ) : (
           <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center">
             <span className="material-icons text-gray-400 text-3xl mb-2">photo_library</span>
-            <p className="text-sm text-gray-500">No pages captured yet. Use the camera above to capture answer sheets.</p>
+            <p className="text-sm text-gray-500">No pages captured yet. Use the camera above or upload from gallery.</p>
           </div>
         )}
         

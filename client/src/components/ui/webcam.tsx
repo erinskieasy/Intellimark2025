@@ -11,7 +11,8 @@ export interface WebcamProps {
 
 export function Webcam({
   onCapture,
-  aspectRatio = 4/3,
+  // Default to 4/3 which is more standard and widely supported
+  aspectRatio,
   className,
   withFacingToggle = true
 }: WebcamProps) {
@@ -20,33 +21,59 @@ export function Webcam({
   const [facingMode, setFacingMode] = useState<string>('environment');
   const [cameraReady, setCameraReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Initialize camera
+  // Initialize camera with improved error handling and fallbacks
   const initCamera = useCallback(async () => {
     try {
+      // Stop any existing stream
       if (stream) {
-        // Stop previous stream
         stream.getTracks().forEach(track => track.stop());
       }
 
       setCameraReady(false);
       setError(null);
-
-      const newStream = await navigator.mediaDevices.getUserMedia({
+      
+      console.log("Attempting to access camera with facingMode:", facingMode);
+      
+      // Build constraints, making aspectRatio optional
+      const constraints: MediaStreamConstraints = {
         video: {
-          facingMode,
-          aspectRatio
+          facingMode
         },
         audio: false
-      });
+      };
+      
+      // Only add aspectRatio if explicitly specified to avoid compatibility issues
+      if (aspectRatio) {
+        (constraints.video as MediaTrackConstraints).aspectRatio = aspectRatio;
+      }
 
-      setStream(newStream);
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("Camera access granted", newStream);
+        setStream(newStream);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        videoRef.current.onloadedmetadata = () => {
-          setCameraReady(true);
-        };
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+          // Play the video as soon as possible
+          videoRef.current.play().catch(e => console.error("Error playing video:", e));
+        }
+      } catch (err) {
+        console.error('Failed with primary constraints, trying fallback', err);
+        // Try again with minimal constraints if specific ones fail
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+        
+        console.log("Camera access granted with fallback", fallbackStream);
+        setStream(fallbackStream);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = fallbackStream;
+          videoRef.current.play().catch(e => console.error("Error playing video:", e));
+        }
       }
     } catch (err) {
       console.error('Error accessing camera', err);
@@ -54,17 +81,75 @@ export function Webcam({
     }
   }, [facingMode, aspectRatio, stream]);
 
-  // Initialize on component mount
+  // Handle video element events to better track readiness
+  const setupVideoEvents = useCallback(() => {
+    if (!videoRef.current) return;
+    
+    const video = videoRef.current;
+    
+    // Multiple event handlers to catch various camera ready states
+    const handleReady = () => {
+      console.log("Camera stream ready");
+      setCameraReady(true);
+    };
+    
+    // Handle video errors
+    const handleError = (e: Event) => {
+      console.error("Video element error:", e);
+      setCameraReady(false);
+      setError("Error displaying camera feed. Please try again.");
+    };
+    
+    video.addEventListener('loadeddata', handleReady);
+    video.addEventListener('loadedmetadata', handleReady);
+    video.addEventListener('canplay', handleReady);
+    video.addEventListener('error', handleError);
+    
+    return () => {
+      video.removeEventListener('loadeddata', handleReady);
+      video.removeEventListener('loadedmetadata', handleReady);
+      video.removeEventListener('canplay', handleReady);
+      video.removeEventListener('error', handleError);
+    };
+  }, []);
+
+  // Initialize on component mount with retry mechanism
   useEffect(() => {
-    initCamera();
+    const cleanup = setupVideoEvents();
+    
+    const initWithRetry = async () => {
+      try {
+        await initCamera();
+      } catch (err) {
+        console.error('Failed to initialize camera', err);
+        if (retryCount < 3) {
+          console.log(`Retrying camera initialization (${retryCount + 1}/3)...`);
+          setRetryCount(prev => prev + 1);
+          // Add a short delay before retrying
+          setTimeout(initWithRetry, 1000);
+        } else {
+          setError('Could not access camera after multiple attempts. Please check your permissions and try again.');
+        }
+      }
+    };
+    
+    initWithRetry();
 
     return () => {
       // Cleanup on unmount
+      if (cleanup) cleanup();
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [initCamera]);
+  }, [initCamera, setupVideoEvents, retryCount]);
+
+  // Re-initialize when facing mode changes
+  useEffect(() => {
+    if (retryCount === 0) {
+      initCamera();
+    }
+  }, [facingMode, initCamera, retryCount]);
 
   // Capture image from camera
   const captureImage = useCallback(() => {
@@ -72,13 +157,16 @@ export function Webcam({
 
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
+    // Ensure we're using the actual video dimensions
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      // Draw the current video frame to the canvas
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg');
+      // Convert canvas to data URL (JPEG format)
+      const imageData = canvas.toDataURL('image/jpeg', 0.9); // 0.9 quality for better performance
       onCapture(imageData);
     }
   }, [onCapture, cameraReady]);
@@ -86,6 +174,8 @@ export function Webcam({
   // Toggle camera facing mode
   const toggleFacing = useCallback(() => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+    // Reset retry count when manually changing camera
+    setRetryCount(0);
   }, []);
 
   return (
@@ -94,17 +184,20 @@ export function Webcam({
         <div className="bg-gray-900 w-full aspect-[4/3] flex flex-col items-center justify-center text-white p-4 text-center">
           <span className="material-icons text-4xl mb-2 text-red-400">error</span>
           <p className="mb-4">{error}</p>
-          <Button onClick={initCamera} variant="outline">Retry</Button>
+          <Button onClick={() => { setRetryCount(0); initCamera(); }} variant="outline">
+            Retry
+          </Button>
         </div>
       ) : (
         <>
-          <div className="bg-gray-900 w-full" style={{ aspectRatio }}>
+          <div className="bg-gray-900 w-full" style={{ aspectRatio: aspectRatio || 4/3 }}>
             <video 
               ref={videoRef} 
               autoPlay 
               playsInline 
               muted 
               className="w-full h-full object-cover"
+              style={{ display: cameraReady ? 'block' : 'none' }}
             />
             
             {!cameraReady && (
