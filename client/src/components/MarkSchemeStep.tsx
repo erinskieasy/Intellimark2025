@@ -643,7 +643,7 @@ export default function MarkSchemeStep() {
             </div>
           </div>
 
-          <div className="mt-4 p-4 bg-gray-50 rounded-md">
+          <div className="hidden mt-4 p-4 bg-gray-50 rounded-md">
             <h4 className="text-sm font-medium mb-2">Current Column Mapping:</h4>
             <pre className="text-xs">
               questionNumberCol: {columnMapping?.questionNumberCol || 'none'}{'\n'}
