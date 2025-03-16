@@ -174,6 +174,7 @@ export class MemStorage implements IStorage {
     }
     
     const markScheme = await this.getMarkScheme(testId);
+    console.log('Mark Scheme retrieved:', markScheme);
     
     return markScheme.map(entry => {
       const studentAnswer = result.studentAnswers[entry.questionNumber.toString()] || '';
