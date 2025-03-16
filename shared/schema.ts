@@ -89,7 +89,7 @@ export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 // Create a common type for mark scheme data from Excel
 export const markSchemeRowSchema = z.object({
   questionNumber: z.number().int().positive(),
-  expectedAnswer: z.string().min(1),
+  expectedAnswer: z.string(), // Allow empty strings for blank answers
   points: z.number().int().nonnegative(),
 });
 
