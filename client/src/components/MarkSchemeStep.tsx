@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,8 +35,10 @@ import {
 } from '@/components/ui/select';
 import { parseExcelForPreview, parseExcelWithColumnMap } from '@/lib/utils';
 import { ExcelColumnMap } from '@shared/schema';
+import { MarkSchemeEntry } from '@/types';
 
 export default function MarkSchemeStep() {
+  // State hooks
   const [file, setFile] = useState<File | null>(null);
   const [createTestDialogOpen, setCreateTestDialogOpen] = useState(false);
   const [testName, setTestName] = useState('');
@@ -44,6 +46,7 @@ export default function MarkSchemeStep() {
   const [columnMapping, setColumnMapping] = useState<ExcelColumnMap | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   
+  // Access hooks
   const { toast } = useToast();
   const { 
     markScheme, 
@@ -109,7 +112,6 @@ export default function MarkSchemeStep() {
     });
   }, [toast]);
   
-  // Handle column mapping confirmation
   // Handle column selection
   const handleColumnSelect = useCallback((field: keyof ExcelColumnMap, value: string) => {
     setColumnMapping((prev) => ({
@@ -161,7 +163,7 @@ export default function MarkSchemeStep() {
       // });
       
       // Directly set the mark scheme in the context
-      setMarkScheme(parsedData);
+      setMarkScheme(parsedData as MarkSchemeEntry[]);
       
       setColumnMappingDialogOpen(false);
     } catch (error) {
