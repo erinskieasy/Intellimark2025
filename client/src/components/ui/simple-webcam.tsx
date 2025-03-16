@@ -22,10 +22,11 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
       try {
         console.log("Simple camera: starting initialization");
 
-        // Request camera access with minimal constraints
+        // Request camera access with minimal constraints and try to enable flash
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: 'environment' }
+            facingMode: { ideal: 'environment' },
+            advanced: [{ torch: true }]
           },
           audio: false,
         });
@@ -50,6 +51,15 @@ export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
           videoRef.current.srcObject = videoStream;
           console.log("Simple camera: stream connected to video element");
         }
+
+        // Try to enable flash/torch if available
+        const track = videoStream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities();
+        if (capabilities.torch) {
+          await track.applyConstraints({ advanced: [{ torch: true }] });
+        }
+
+
       } catch (err) {
         console.error("Simple camera error:", err);
         if (mounted) {
