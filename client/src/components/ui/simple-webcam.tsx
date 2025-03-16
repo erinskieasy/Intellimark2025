@@ -1,112 +1,63 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export interface SimpleWebcamProps {
   onCapture: (imageData: string) => void;
   className?: string;
-  withFacingToggle?: boolean;
 }
 
-export function SimpleWebcam({ onCapture, className, withFacingToggle = true }: SimpleWebcamProps) {
+export function SimpleWebcam({ onCapture, className }: SimpleWebcamProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const [hasFrontAndBack, setHasFrontAndBack] = useState(false);
-  
-  // Start camera with current facing mode
-  const startCamera = useCallback(async () => {
-    // Skip if already initializing
-    if (isInitializing) return;
-    
-    // Set initializing flag
-    setIsInitializing(true);
-    
-    // Reset state
-    setIsReady(false);
-    setError(null);
-    
-    // Stop any existing stream
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    
-    let videoStream: MediaStream | null = null;
-    
-    try {
-      console.log(`Simple camera: starting initialization (facingMode: ${facingMode})`);
-      
-      // Check for multiple cameras first
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        const hasMultipleCameras = videoDevices.length > 1;
-        setHasFrontAndBack(hasMultipleCameras);
-        console.log(`Simple camera: detected ${videoDevices.length} cameras`);
-      } catch (deviceErr) {
-        console.warn("Could not determine camera count:", deviceErr);
-      }
-      
-      // Use facingMode in constraints if supported
-      const videoConstraints: MediaTrackConstraints = {};
-      
-      // Only set facingMode if running on mobile (likely to have front/back cameras)
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile || hasFrontAndBack) {
-        videoConstraints.facingMode = { exact: facingMode };
-      }
-      
-      // Try with exact facingMode first
-      try {
-        videoStream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false,
-        });
-      } catch (exactErr) {
-        console.log("Simple camera: couldn't use exact facingMode, falling back to default", exactErr);
-        
-        // Fall back to basic constraints
-        videoStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
-      }
-      
-      // Store in state
-      setStream(videoStream);
-      
-      // Connect to video element
-      if (videoRef.current) {
-        videoRef.current.srcObject = videoStream;
-        console.log("Simple camera: stream connected to video element");
-      }
-    } catch (err) {
-      console.error("Simple camera error:", err);
-      setError("Could not access camera. Please check permissions and try again.");
-      
-      // Clean up any partial stream
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-      }
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [facingMode, hasFrontAndBack, isInitializing, stream]);
   
   // Initialize once on mount
   useEffect(() => {
     let mounted = true;
+    let videoStream: MediaStream | null = null;
+    
+    const startCamera = async () => {
+      try {
+        console.log("Simple camera: starting initialization");
+        
+        // Request camera access with minimal constraints
+        const cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        
+        // Store in local variable
+        videoStream = cameraStream;
+        
+        // If component was unmounted during async operation, cleanup and exit
+        if (!mounted) {
+          console.log("Simple camera: component unmounted during initialization");
+          if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+          }
+          return;
+        }
+        
+        // Store in state
+        setStream(videoStream);
+        
+        // Connect to video element
+        if (videoRef.current) {
+          videoRef.current.srcObject = videoStream;
+          console.log("Simple camera: stream connected to video element");
+        }
+      } catch (err) {
+        console.error("Simple camera error:", err);
+        if (mounted) {
+          setError("Could not access camera. Please check permissions and try again.");
+        }
+      }
+    };
     
     // Start camera with a slight delay to ensure DOM is ready
-    const timerId = setTimeout(() => {
-      if (mounted) {
-        startCamera();
-      }
-    }, 800);
+    const timerId = setTimeout(startCamera, 800);
     
     // Cleanup function
     return () => {
@@ -114,12 +65,12 @@ export function SimpleWebcam({ onCapture, className, withFacingToggle = true }: 
       clearTimeout(timerId);
       
       // Stop any active tracks
-      if (stream) {
+      if (videoStream) {
         console.log("Simple camera: stopping tracks on unmount");
-        stream.getTracks().forEach(track => track.stop());
+        videoStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [startCamera]);
+  }, []);
   
   // Handle video events
   useEffect(() => {
@@ -172,20 +123,6 @@ export function SimpleWebcam({ onCapture, className, withFacingToggle = true }: 
     }
   };
   
-  // Toggle camera facing mode (front/back)
-  const toggleFacingMode = useCallback(() => {
-    // Toggle between user (front) and environment (back) facing modes
-    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
-    console.log(`Simple camera: switching from ${facingMode} to ${newFacingMode}`);
-    
-    setFacingMode(newFacingMode);
-    
-    // Re-initialize camera with new facing mode
-    setTimeout(() => {
-      startCamera();
-    }, 300);
-  }, [facingMode, startCamera]);
-  
   return (
     <div className={cn("relative overflow-hidden rounded-lg bg-gray-900", className)}>
       {error ? (
@@ -222,21 +159,6 @@ export function SimpleWebcam({ onCapture, className, withFacingToggle = true }: 
             >
               <div className="bg-blue-500 rounded-full w-12 h-12"></div>
             </Button>
-            
-            {/* Camera flip button */}
-            {withFacingToggle && (hasFrontAndBack || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) && (
-              <Button 
-                onClick={toggleFacingMode}
-                variant="secondary"
-                size="sm"
-                className="absolute bottom-0 right-4 rounded-full bg-gray-800 text-white"
-                disabled={!isReady || isInitializing}
-              >
-                <span className="material-icons text-sm">
-                  flip_camera_{facingMode === 'user' ? 'android' : 'ios'}
-                </span>
-              </Button>
-            )}
           </div>
         </>
       )}

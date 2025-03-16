@@ -22,8 +22,6 @@ export function Webcam({
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showCamera, setShowCamera] = useState(true);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const [hasFrontAndBack, setHasFrontAndBack] = useState(false);
   
   // Show debug info to help troubleshoot
   const [debugInfo, setDebugInfo] = useState<{
@@ -33,15 +31,13 @@ export function Webcam({
     videoWidth: number | null;
     videoHeight: number | null;
     initAttempts: number;
-    facingMode: string;
   }>({
     hasUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
     videoElementExists: false,
     readyState: null,
     videoWidth: null,
     videoHeight: null,
-    initAttempts: 0,
-    facingMode: facingMode
+    initAttempts: 0
   });
   
   // Update debug info
@@ -59,10 +55,9 @@ export function Webcam({
       videoElementExists: true,
       readyState: videoRef.current?.readyState || null,
       videoWidth: videoRef.current?.videoWidth || null,
-      videoHeight: videoRef.current?.videoHeight || null,
-      facingMode: facingMode
+      videoHeight: videoRef.current?.videoHeight || null
     }));
-  }, [facingMode]);
+  }, []);
 
   // Set mounted state
   useEffect(() => {
@@ -81,7 +76,7 @@ export function Webcam({
       initAttempts: prev.initAttempts + 1 
     }));
     
-    console.log(`🔄 Starting camera initialization (attempt ${debugInfo.initAttempts + 1}, facingMode: ${facingMode})`);
+    console.log("🔄 Starting camera initialization (attempt " + (debugInfo.initAttempts + 1) + ")");
     
     try {
       // Clean up previous stream
@@ -97,44 +92,12 @@ export function Webcam({
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("getUserMedia not supported in this browser");
       }
-
-      // First check if there are multiple cameras available
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        const hasMultipleCameras = videoDevices.length > 1;
-        setHasFrontAndBack(hasMultipleCameras);
-        console.log(`📷 Detected ${videoDevices.length} cameras`);
-      } catch (deviceErr) {
-        console.warn("Could not determine camera count:", deviceErr);
-        // Continue anyway, we'll try with basic constraints
-      }
       
-      // Use facingMode in constraints if supported
-      const videoConstraints: MediaTrackConstraints = {};
-      
-      // Only set facingMode if running on mobile (likely to have front/back cameras)
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile || hasFrontAndBack) {
-        videoConstraints.facingMode = { exact: facingMode };
-      }
-      
-      let stream;
-      try {
-        // Try with exact facingMode first (strict constraints)
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false
-        });
-      } catch (exactError) {
-        console.log("Could not get stream with exact facingMode, trying with basic constraints", exactError);
-        
-        // Fallback to basic constraints
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
-      }
+      // Extremely basic constraints for maximum compatibility
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
       
       console.log("✅ Stream obtained:", stream.id, "with", stream.getVideoTracks().length, "video tracks");
       
@@ -184,7 +147,7 @@ export function Webcam({
       updateDebugInfo();
       setIsInitializing(false);
     }
-  }, [isMounted, isInitializing, debugInfo.initAttempts, updateDebugInfo, facingMode, hasFrontAndBack]);
+  }, [isMounted, isInitializing, debugInfo.initAttempts, updateDebugInfo]);
 
   // Initialize camera on component mount - with initialization flag to prevent multiple calls
   useEffect(() => {
@@ -253,25 +216,6 @@ export function Webcam({
       initCamera();
     }
   }, [showCamera, initCamera]);
-  
-  // Toggle camera facing mode (front/back)
-  const toggleFacingMode = useCallback(() => {
-    // Toggle between user (front) and environment (back) facing modes
-    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
-    console.log(`Switching camera from ${facingMode} to ${newFacingMode}`);
-    
-    setFacingMode(newFacingMode);
-    
-    // Re-initialize camera with new facing mode
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-    }
-    
-    // Small delay before reinitializing to ensure previous stream is fully stopped
-    setTimeout(() => {
-      initCamera();
-    }, 300);
-  }, [facingMode, initCamera]);
 
   return (
     <div className={cn("relative rounded-lg overflow-hidden", className)}>
@@ -291,8 +235,6 @@ export function Webcam({
               <p>Ready state: {debugInfo.readyState !== null ? debugInfo.readyState : 'N/A'}</p>
               <p>Resolution: {debugInfo.videoWidth || 0} x {debugInfo.videoHeight || 0}</p>
               <p>Init attempts: {debugInfo.initAttempts}</p>
-              <p>Facing mode: {debugInfo.facingMode}</p>
-              <p>Multiple cameras: {hasFrontAndBack ? 'Yes' : 'No'}</p>
             </div>
           </div>
         </div>
@@ -344,21 +286,6 @@ export function Webcam({
                 {showCamera ? 'videocam_off' : 'videocam'}
               </span>
             </Button>
-            
-            {/* Add camera flip button if withFacingToggle is true and we have multiple cameras */}
-            {withFacingToggle && showCamera && (hasFrontAndBack || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) && (
-              <Button 
-                onClick={toggleFacingMode}
-                variant="secondary"
-                size="sm"
-                className="absolute bottom-0 right-4 rounded-full"
-                disabled={!cameraReady || isInitializing}
-              >
-                <span className="material-icons">
-                  flip_camera_{facingMode === 'user' ? 'android' : 'ios'}
-                </span>
-              </Button>
-            )}
           </div>
         </>
       )}
