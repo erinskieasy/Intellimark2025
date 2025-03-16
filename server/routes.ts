@@ -182,10 +182,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post("/pages/:id/process", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      // Get all pages from storage since we don't know which test the page belongs to
-      // This is needed because getPages requires a testId, but we're looking up by page id
-      const allPages = await storage.getPages(0); // Get all pages
-      const page = allPages.find(p => p.id === id);
+      let page;
+      
+      try {
+        // Try to get the page directly using the getPage method
+        page = await storage.getPage(id);
+      } catch (pageError) {
+        console.log(`Error finding page with ID ${id} directly: ${pageError.message}`);
+        
+        // Fallback: Try to find the page from all pages
+        const allPages = await storage.getPages(0); // Get all pages
+        page = allPages.find(p => p.id === id);
+      }
       
       console.log(`Processing page ${id}, found: ${!!page}`);
       
@@ -196,9 +204,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get settings for image processing
       const settings = await storage.getSettings();
       
+      // Verify we have an OpenAI API key
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          message: "Missing OpenAI API key. Please provide an OPENAI_API_KEY in your environment variables."
+        });
+      }
+      
       // Process the image with OpenAI
       const imageData = page.imageData.replace(/^data:image\/[a-z]+;base64,/, "");
       const extractionResult = await extractAnswersFromImage(imageData, settings);
+      
+      console.log(`Extraction result for page ${id}:`, extractionResult);
       
       // Update the page with extracted answers
       const updatedPage = await storage.updatePageProcessed(
@@ -213,6 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confidence: extractionResult.confidence
       });
     } catch (error) {
+      console.error(`Error processing page ${req.params.id}:`, error);
       res.status(500).json({ 
         message: `Error processing page: ${error instanceof Error ? error.message : String(error)}` 
       });
