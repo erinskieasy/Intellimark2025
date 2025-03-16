@@ -49,9 +49,12 @@ export default function MarkSchemeStep() {
     pointsCol: 'none'
   });
 
-  // Initialize context column mapping when component loads
+  // Initialize context column mapping and show create test dialog if needed
   useEffect(() => {
     setColumnMap(columnMapping);
+    if (!currentTest) {
+      setCreateTestDialogOpen(true);
+    }
   }, []);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
