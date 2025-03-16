@@ -91,9 +91,13 @@ export function TestGraderProvider({ children }: { children: ReactNode }) {
     setCapturedPages(prev => prev.filter(p => p.pageNumber !== pageNumber));
   }, []);
   
-  // Clear all captured pages
+  // Clear all captured pages and reset processing state
   const clearCapturedPages = useCallback(() => {
     setCapturedPages([]);
+    // Also reset the processing state
+    setProcessingPage(null);
+    setProcessingProgress(0);
+    setTotalProcessingPages(0);
   }, []);
   
   // Start processing images
