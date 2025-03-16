@@ -45,7 +45,7 @@ export default function MarkSchemeStep() {
   const [columnMappingDialogOpen, setColumnMappingDialogOpen] = useState(false);
   const [columnMapping, setColumnMapping] = useState<ExcelColumnMap | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  
+
   // Access hooks
   const { toast } = useToast();
   const { 
@@ -67,19 +67,19 @@ export default function MarkSchemeStep() {
     excelParseError,
     testMarkScheme 
   } = useTestGraderActions();
-  
+
   // If we have testMarkScheme from the server, use it
   useEffect(() => {
     if (testMarkScheme && Array.isArray(testMarkScheme) && testMarkScheme.length > 0) {
       // Mark scheme is loaded from the server
     }
   }, [testMarkScheme]);
-  
+
   // Handle file change and parse Excel for preview
   const handleFileChange = useCallback(async (uploadedFile: File | null) => {
     setFile(uploadedFile);
     setExcelFile(uploadedFile);
-    
+
     if (uploadedFile) {
       try {
         setIsPreviewLoading(true);
@@ -87,7 +87,7 @@ export default function MarkSchemeStep() {
         setExcelPreviewData(data);
         setExcelColumns(columns);
         setIsPreviewLoading(false);
-        
+
         // Open column mapping dialog if we have columns
         if (columns.length > 0) {
           // Initialize empty column mapping - make sure it's completely empty
@@ -96,13 +96,13 @@ export default function MarkSchemeStep() {
             expectedAnswerCol: '',
             pointsCol: ''
           };
-          
+
           // Log the columns we found
           console.log("Excel file column detection: Found columns:", columns);
-          
+
           // Set the empty mapping
           setColumnMapping(emptyMapping);
-          
+
           setColumnMappingDialogOpen(true);
         }
       } catch (error) {
@@ -115,7 +115,7 @@ export default function MarkSchemeStep() {
       }
     }
   }, [setExcelFile, setExcelPreviewData, setExcelColumns, toast]);
-  
+
   // Handle file error
   const handleFileError = useCallback((error: string) => {
     toast({
@@ -124,22 +124,22 @@ export default function MarkSchemeStep() {
       variant: 'destructive'
     });
   }, [toast]);
-  
+
   // Initialize column mapping with best guesses based on column names
   const initializeEmptyColumnMapping = useCallback(() => {
     // Log available columns for debugging
     console.log("Available columns for mapping:", excelColumns);
-    
+
     // Try to find column names that are likely to contain the right data
     // This is just a convenience feature - the user can still select different columns
     let questionCol = '';
     let answerCol = '';
     let pointsCol = '';
-    
+
     // Search for common patterns in column names
     for (const col of excelColumns) {
       const lowerCol = col.toLowerCase();
-      
+
       // Check for question number columns
       if (
         lowerCol === 'question_number' ||
@@ -154,7 +154,7 @@ export default function MarkSchemeStep() {
       ) {
         questionCol = col;
       }
-      
+
       // Check for answer columns
       if (
         lowerCol === 'expected_answer' ||
@@ -168,7 +168,7 @@ export default function MarkSchemeStep() {
       ) {
         answerCol = col;
       }
-      
+
       // Check for points columns
       if (
         lowerCol === 'points' ||
@@ -185,19 +185,19 @@ export default function MarkSchemeStep() {
         pointsCol = col;
       }
     }
-    
+
     // Create the mapping object based on what we found (possibly empty strings)
     const mapping: ExcelColumnMap = {
       questionNumberCol: questionCol,
       expectedAnswerCol: answerCol,
       pointsCol: pointsCol
     };
-    
+
     console.log("Initialized column mapping with suggestions:", mapping);
-    
+
     // Set the mapping
     setColumnMapping(mapping);
-    
+
     // Notify user they need to verify and possibly update the columns
     toast({
       title: "Column Mapping",
@@ -210,13 +210,13 @@ export default function MarkSchemeStep() {
   const handleColumnSelect = useCallback((field: keyof ExcelColumnMap, value: string) => {
     // Skip the "_none" placeholder value
     if (value === "_none") return;
-    
+
     setColumnMapping((prev) => ({
       ...(prev || { questionNumberCol: '', expectedAnswerCol: '', pointsCol: '' }),
       [field]: value
     }));
   }, []);
-  
+
   // Handle column mapping confirmation
   const handleColumnMappingConfirm = useCallback(async () => {
     if (!columnMapping || !file) {
@@ -227,7 +227,7 @@ export default function MarkSchemeStep() {
       });
       return;
     }
-    
+
     // Check if all required columns are selected
     if (!columnMapping.questionNumberCol || !columnMapping.expectedAnswerCol || !columnMapping.pointsCol) {
       toast({
@@ -237,32 +237,32 @@ export default function MarkSchemeStep() {
       });
       return;
     }
-    
+
     try {
       console.log("Confirming column mapping:", JSON.stringify(columnMapping, null, 2));
-      
+
       // Save the column mapping to global context
       setColumnMap(columnMapping);
-      
+
       if (!currentTest) {
         setColumnMappingDialogOpen(false);
         setCreateTestDialogOpen(true);
         return;
       }
-      
+
       // Parse Excel with the column mapping and immediately use the parsed data
       try {
         const parsedData = await parseExcelWithColumnMap(file, columnMapping) as MarkSchemeEntry[];
         console.log("Successfully parsed Excel data:", parsedData);
-        
+
         if (!parsedData || parsedData.length === 0) {
           throw new Error("No valid data was parsed from the Excel file.");
         }
-        
+
         // Store the parsed data directly in the context 
         // This skips the server roundtrip and potential issues
         setMarkScheme(parsedData);
-        
+
         // Still send to server for storage, but don't depend on response for UI
         try {
           // Create a FormData object to send to the server
@@ -270,13 +270,13 @@ export default function MarkSchemeStep() {
           formData.append('file', file);
           formData.append('testId', currentTest.id!.toString());
           formData.append('markSchemeData', JSON.stringify(parsedData));
-          
+
           // Send the FormData to the server in the background
           const response = await fetch('/api/mark-scheme', {
             method: 'POST',
             body: formData,
           });
-          
+
           if (!response.ok) {
             console.warn("Server storage failed, but we're still using the data:", await response.text());
           } else {
@@ -285,9 +285,9 @@ export default function MarkSchemeStep() {
         } catch (serverError) {
           console.warn("Error storing on server, but we're still using the parsed data:", serverError);
         }
-        
+
         setColumnMappingDialogOpen(false);
-        
+
         toast({
           title: 'Mark Scheme Loaded',
           description: `${parsedData.length} questions loaded successfully.`,
@@ -309,7 +309,7 @@ export default function MarkSchemeStep() {
       });
     }
   }, [columnMapping, file, currentTest, setColumnMap, setMarkScheme, toast]);
-  
+
   // Handle create test dialog
   const handleCreateTest = useCallback(() => {
     if (!testName) {
@@ -320,16 +320,16 @@ export default function MarkSchemeStep() {
       });
       return;
     }
-    
+
     createTestMutation.mutate({
       name: testName,
       totalQuestions: 0, // Will be updated after mark scheme upload
       totalPoints: 0     // Will be updated after mark scheme upload
     });
-    
+
     setCreateTestDialogOpen(false);
   }, [testName, createTestMutation, toast]);
-  
+
   // Handle upload mark scheme
   const handleUploadMarkScheme = useCallback(() => {
     if (!file) {
@@ -340,28 +340,28 @@ export default function MarkSchemeStep() {
       });
       return;
     }
-    
+
     if (!currentTest) {
       setCreateTestDialogOpen(true);
       return;
     }
-    
+
     uploadMarkSchemeMutation.mutate({
       file,
       testId: currentTest.id!
     });
   }, [file, currentTest, uploadMarkSchemeMutation, toast]);
-  
+
   // Handle delete file
   const handleDeleteFile = useCallback(() => {
     setFile(null);
   }, []);
-  
+
   // Handle next button
   const handleNextStep = useCallback(() => {
     setStep('capture');
   }, [setStep]);
-  
+
   return (
     <div className="bg-white rounded-lg shadow-md p-5">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Upload Mark Scheme</h2>
@@ -369,7 +369,7 @@ export default function MarkSchemeStep() {
         Please upload an Excel spreadsheet containing your mark scheme with the following columns: 
         Question Number, Expected Answer, and Question Points.
       </p>
-      
+
       {/* File Uploader */}
       {!file && (
         <FileInput
@@ -380,7 +380,7 @@ export default function MarkSchemeStep() {
           acceptText="Supported format: .xlsx"
         />
       )}
-      
+
       {/* Excel Preview */}
       {file && (
         <div className="mb-4">
@@ -394,7 +394,7 @@ export default function MarkSchemeStep() {
               <span className="material-icons">delete</span>
             </button>
           </div>
-          
+
           {excelParseError ? (
             <div className="border border-red-200 bg-red-50 rounded-lg p-4 mb-5">
               <h3 className="text-sm font-medium text-red-800 mb-1">Error parsing Excel file</h3>
@@ -444,7 +444,18 @@ export default function MarkSchemeStep() {
           )}
         </div>
       )}
-      
+
+      {columnMapping && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-md mb-4">
+          <h4 className="text-sm font-medium mb-2">Current Column Mapping:</h4>
+          <pre className="text-xs">
+            questionNumberCol: {columnMapping.questionNumberCol || 'none'}{'\n'}
+            expectedAnswerCol: {columnMapping.expectedAnswerCol || 'none'}{'\n'}
+            pointsCol: {columnMapping.pointsCol || 'none'}
+          </pre>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <Button 
           id="nextToCapture" 
@@ -456,7 +467,7 @@ export default function MarkSchemeStep() {
           <span className="material-icons ml-1">arrow_forward</span>
         </Button>
       </div>
-      
+
       {/* Create Test Dialog */}
       <Dialog open={createTestDialogOpen} onOpenChange={setCreateTestDialogOpen}>
         <DialogContent>
@@ -466,7 +477,7 @@ export default function MarkSchemeStep() {
               Enter a name for the new test.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <Label htmlFor="test-name">Test Name</Label>
             <Input 
@@ -476,7 +487,7 @@ export default function MarkSchemeStep() {
               placeholder="e.g., Biology Midterm"
             />
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateTestDialogOpen(false)}>
               Cancel
@@ -487,7 +498,7 @@ export default function MarkSchemeStep() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Column Mapping Dialog */}
       <Dialog open={columnMappingDialogOpen} onOpenChange={setColumnMappingDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -514,7 +525,7 @@ export default function MarkSchemeStep() {
               </Button>
             </div>
           </DialogHeader>
-          
+
           <div className="py-4 space-y-6">
             {/* Preview table */}
             {isPreviewLoading ? (
@@ -550,7 +561,7 @@ export default function MarkSchemeStep() {
             ) : (
               <div className="text-center py-4 text-gray-500">No preview data available</div>
             )}
-            
+
             {/* Column mapping fields */}
             <div className="space-y-4">
               <div>
@@ -572,7 +583,7 @@ export default function MarkSchemeStep() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="answer-column">Expected Answer Column</Label>
                 <Select 
@@ -592,7 +603,7 @@ export default function MarkSchemeStep() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="points-column">Points Column</Label>
                 <Select 
@@ -614,7 +625,7 @@ export default function MarkSchemeStep() {
               </div>
             </div>
           </div>
-          
+
           <div className="mt-4 p-4 bg-gray-50 rounded-md">
             <h4 className="text-sm font-medium mb-2">Current Column Mapping:</h4>
             <pre className="text-xs">
@@ -623,7 +634,7 @@ export default function MarkSchemeStep() {
               pointsCol: {columnMapping?.pointsCol || 'none'}
             </pre>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setColumnMappingDialogOpen(false)}>
               Cancel
