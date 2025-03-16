@@ -13,7 +13,8 @@ export default function CaptureStep() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { capturedPages, currentTest, setStep, removeCapturedPage, markScheme } = useTestGrader();
-  const { captureImageMutation, clearCapturedPages } = useTestGraderActions();
+  const { captureImageMutation } = useTestGraderActions();
+  const { clearCapturedPages } = useTestGrader();
 
   // Handle image capture
   const handleCapture = useCallback((imageData: string) => {
