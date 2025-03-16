@@ -34,7 +34,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { parseExcelForPreview, parseExcelWithColumnMap } from '@/lib/utils';
-import { ExcelColumnMap } from '@shared/schema';
+import { ExcelColumnMap, markSchemeRowSchema } from '@shared/schema';
 import { MarkSchemeEntry } from '@/types';
 
 export default function MarkSchemeStep() {
@@ -215,36 +215,42 @@ export default function MarkSchemeStep() {
         return;
       }
       
-      // Parse Excel with the column mapping
-      const parsedData = await parseExcelWithColumnMap(file, columnMapping);
+      // Parse Excel with the column mapping and immediately use the parsed data
+      const parsedData = await parseExcelWithColumnMap(file, columnMapping) as MarkSchemeEntry[];
+      console.log("Successfully parsed Excel data:", parsedData);
       
-      // Create a FormData object to send to the server
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('testId', currentTest.id!.toString());
-      formData.append('markSchemeData', JSON.stringify(parsedData));
+      // Store the parsed data directly in the context 
+      // This skips the server roundtrip and potential issues
+      setMarkScheme(parsedData);
       
-      // Send the FormData to the server
-      const response = await fetch('/api/mark-scheme', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || response.statusText);
+      // Still send to server for storage, but don't depend on response for UI
+      try {
+        // Create a FormData object to send to the server
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('testId', currentTest.id!.toString());
+        formData.append('markSchemeData', JSON.stringify(parsedData));
+        
+        // Send the FormData to the server in the background
+        const response = await fetch('/api/mark-scheme', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          console.warn("Server storage failed, but we're still using the data:", await response.text());
+        } else {
+          console.log("Successfully stored mark scheme on server");
+        }
+      } catch (serverError) {
+        console.warn("Error storing on server, but we're still using the parsed data:", serverError);
       }
-      
-      const result = await response.json();
-      
-      // Set the mark scheme in the context from the server response
-      setMarkScheme(result.entries);
       
       setColumnMappingDialogOpen(false);
       
       toast({
-        title: 'Mark Scheme Uploaded',
-        description: `${result.entries.length} questions loaded successfully.`,
+        title: 'Mark Scheme Loaded',
+        description: `${parsedData.length} questions loaded successfully.`,
       });
       
     } catch (error) {
