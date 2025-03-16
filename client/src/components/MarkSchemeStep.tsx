@@ -112,6 +112,67 @@ export default function MarkSchemeStep() {
     });
   }, [toast]);
   
+  // Guess column mappings (try to find appropriate columns automatically)
+  const guessColumnMappings = useCallback(() => {
+    // Define variants for each column type with more comprehensive matching
+    const questionNumVariants = ['question', 'q', 'num', 'number', '#', 'question number', 'question #', 'q#'];
+    const answerVariants = ['answer', 'key', 'correct', 'expected', 'expected answer', 'answer key'];
+    const pointsVariants = ['point', 'score', 'mark', 'value', 'points', 'marks', 'point value'];
+    
+    let guessedMapping: ExcelColumnMap = {
+      questionNumberCol: '',
+      expectedAnswerCol: '',
+      pointsCol: ''
+    };
+    
+    // Log available columns for debugging
+    console.log("Available columns for mapping:", excelColumns);
+    
+    excelColumns.forEach(column => {
+      const lowerColumn = column.toLowerCase();
+      console.log(`Checking column "${column}" (lowercase: "${lowerColumn}")`);
+      
+      // Check for question number column
+      if (!guessedMapping.questionNumberCol && 
+          questionNumVariants.some(v => lowerColumn.includes(v.toLowerCase()))) {
+        console.log(`  Matched question number column: "${column}"`);
+        guessedMapping.questionNumberCol = column;
+      }
+      
+      // Check for answer column
+      if (!guessedMapping.expectedAnswerCol && 
+          answerVariants.some(v => lowerColumn.includes(v.toLowerCase()))) {
+        console.log(`  Matched expected answer column: "${column}"`);
+        guessedMapping.expectedAnswerCol = column;
+      }
+      
+      // Check for points column
+      if (!guessedMapping.pointsCol && 
+          pointsVariants.some(v => lowerColumn.includes(v.toLowerCase()))) {
+        console.log(`  Matched points column: "${column}"`);
+        guessedMapping.pointsCol = column;
+      }
+    });
+    
+    console.log("Guessed column mapping:", guessedMapping);
+    setColumnMapping(guessedMapping);
+    
+    // Add toast notification to show the mapping result
+    if (guessedMapping.questionNumberCol && guessedMapping.expectedAnswerCol && guessedMapping.pointsCol) {
+      toast({
+        title: "Column Mapping",
+        description: "Successfully mapped all columns automatically!",
+        variant: "default"
+      });
+    } else {
+      toast({
+        title: "Column Mapping",
+        description: "Some columns couldn't be matched automatically. Please select them manually.",
+        variant: "destructive"
+      });
+    }
+  }, [excelColumns, toast]);
+
   // Handle column selection
   const handleColumnSelect = useCallback((field: keyof ExcelColumnMap, value: string) => {
     // Skip the "_none" placeholder value
@@ -381,6 +442,16 @@ export default function MarkSchemeStep() {
             <DialogDescription>
               Please select which columns in your Excel file correspond to the question number, expected answer, and points.
             </DialogDescription>
+            <div className="mt-4">
+              <Button 
+                variant="outline" 
+                onClick={guessColumnMappings}
+                className="w-full"
+              >
+                <span className="material-icons mr-1">auto_awesome</span>
+                Auto-Detect Columns
+              </Button>
+            </div>
           </DialogHeader>
           
           <div className="py-4 space-y-6">

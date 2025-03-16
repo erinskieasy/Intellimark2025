@@ -245,9 +245,18 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
         // Validate and normalize data using the column mapping
         const markSchemeData = jsonData.map((row: any, index) => {
           // Extract values directly from the row using the column mapping
+          // Try to get values with exact column name or normalized version
           let questionNumber = row[columnMap.questionNumberCol];
           let expectedAnswer = row[columnMap.expectedAnswerCol];
           let points = row[columnMap.pointsCol] || 1; // Default to 1 point if not specified
+
+          // Log the raw data for debugging
+          console.log(`Column mapping: `, {
+            questionNumberCol: columnMap.questionNumberCol,
+            expectedAnswerCol: columnMap.expectedAnswerCol,
+            pointsCol: columnMap.pointsCol
+          });
+          console.log(`Raw row data:`, row);
           
           // Force conversion for question number
           if (questionNumber === undefined || questionNumber === null) {
@@ -292,9 +301,13 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
           // Create a plain object without going through schema validation yet
           // This preserves the original data for debugging
           const rawEntry = {
-            questionNumber: typeof questionNumber === 'number' ? questionNumber : parseInt(questionNumber),
-            expectedAnswer: String(expectedAnswer), // Convert to string even if undefined
-            points: typeof points === 'number' ? points : parseInt(points)
+            questionNumber: typeof questionNumber === 'number' ? 
+              questionNumber : 
+              parseInt(String(questionNumber).replace(/\D/g, '')), // Strip non-digits for better number parsing
+            expectedAnswer: String(expectedAnswer || ""), // Convert to string even if undefined
+            points: typeof points === 'number' ? 
+              points : 
+              (parseInt(String(points).replace(/\D/g, '')) || 1) // Strip non-digits, default to 1
           };
           
           console.log(`Row ${index} normalized:`, rawEntry);
