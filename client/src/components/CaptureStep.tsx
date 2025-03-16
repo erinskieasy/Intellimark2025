@@ -11,8 +11,6 @@ import { MarkSchemePreview } from './MarkSchemePreview';
 export default function CaptureStep() {
   const [isCapturing, setIsCapturing] = useState(false);
   const { toast } = useToast();
-  const { capturedPages, currentTest, setStep, removeCapturedPage, markScheme, clearCapturedPages } = useTestGrader();
-  const { captureImageMutation } = useTestGraderActions();
 
   useEffect(() => {
     const shouldClear = localStorage.getItem('shouldClearCaptures');
@@ -21,6 +19,10 @@ export default function CaptureStep() {
       localStorage.removeItem('shouldClearCaptures');
     }
   }, [clearCapturedPages]);
+
+  const { capturedPages, currentTest, setStep, removeCapturedPage, markScheme } = useTestGrader();
+  const { captureImageMutation } = useTestGraderActions();
+  const { clearCapturedPages } = useTestGrader();
 
   // Handle image capture
   const handleCapture = useCallback((imageData: string) => {
