@@ -48,6 +48,11 @@ export default function MarkSchemeStep() {
     expectedAnswerCol: 'none',
     pointsCol: 'none'
   });
+
+  // Initialize context column mapping when component loads
+  useEffect(() => {
+    setColumnMap(columnMapping);
+  }, []);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Access hooks
