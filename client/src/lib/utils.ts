@@ -172,17 +172,40 @@ export async function parseExcelForPreview(file: File): Promise<{
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelPreviewRow[];
+        // Convert to JSON with default empty values
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as ExcelPreviewRow[];
+        
+        // Log the preview data for debugging
+        console.log("Excel preview data (first 5 rows):", JSON.stringify(jsonData.slice(0, 5), null, 2));
         
         // Extract column headers
         const columns = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+        console.log("Detected columns:", columns);
+        
+        // Clean up the data before returning
+        const cleanData = jsonData.slice(0, 5).map(row => {
+          const cleanRow: ExcelPreviewRow = {};
+          
+          // Convert all values to strings for display consistency
+          Object.entries(row).forEach(([key, value]) => {
+            if (value === undefined || value === null) {
+              cleanRow[key] = "";
+            } else if (typeof value === 'object') {
+              cleanRow[key] = JSON.stringify(value);
+            } else {
+              cleanRow[key] = String(value);
+            }
+          });
+          
+          return cleanRow;
+        });
         
         resolve({
-          data: jsonData.slice(0, 5), // Only return first 5 rows for preview
+          data: cleanData, // Return cleaned first 5 rows for preview
           columns
         });
       } catch (error) {
+        console.error("Excel preview error:", error);
         reject(new Error(`Failed to parse Excel file for preview: ${error instanceof Error ? error.message : String(error)}`));
       }
     };
