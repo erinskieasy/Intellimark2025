@@ -64,7 +64,7 @@ export class MemStorage implements IStorage {
     // Initialize default settings
     this.settings = {
       id: 1,
-      answerRecognitionInstructions: "",
+      answerRecognitionInstructions: "The student has tickets in the correct letter replacing that letter with a tick so whatever letter is missing from the list ABCD that's the answer they have selected that's what you return as their answer. For example A✓CD means they have selected B as their answer",
       enhancedRecognition: true,
       confidenceThreshold: 21,
       temperature: 0.1,
