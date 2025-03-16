@@ -157,18 +157,35 @@ export default function MarkSchemeStep() {
       // Parse Excel with the column mapping
       const parsedData = await parseExcelWithColumnMap(file, columnMapping);
       
-      // Send the parsed data to the server
-      // Note: We need to update the API and use-test-grader.ts to accept parsed mark scheme
-      // For now, we'll directly set the mark scheme in the context
-      // uploadMarkSchemeMutation.mutate({
-      //   file,
-      //   testId: currentTest.id!
-      // });
+      // Create a FormData object to send to the server
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('testId', currentTest.id!.toString());
+      formData.append('markSchemeData', JSON.stringify(parsedData));
       
-      // Directly set the mark scheme in the context
-      setMarkScheme(parsedData as MarkSchemeEntry[]);
+      // Send the FormData to the server
+      const response = await fetch('/api/mark-scheme', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
+      
+      const result = await response.json();
+      
+      // Set the mark scheme in the context from the server response
+      setMarkScheme(result.entries);
       
       setColumnMappingDialogOpen(false);
+      
+      toast({
+        title: 'Mark Scheme Uploaded',
+        description: `${result.entries.length} questions loaded successfully.`,
+      });
+      
     } catch (error) {
       toast({
         title: 'Parsing Error',
