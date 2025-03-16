@@ -13,7 +13,6 @@ import { Progress } from '@/components/ui/progress';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { MarkSchemePreview } from './MarkSchemePreview';
-import { FreshDetailedResults, generateFreshResults } from './FreshDetailedResults';
 
 export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -23,10 +22,7 @@ export default function ResultsStep() {
     detailedResults, 
     setStep, 
     resetTestGrader,
-    markScheme,
-    excelFile,
-    columnMap,
-    capturedPages
+    markScheme
   } = useTestGrader();
   
   // Handle back button
@@ -47,100 +43,42 @@ export default function ResultsStep() {
     try {
       setExportingPdf(true);
       
-      // Get fresh student answers
-      const studentAnswers = capturedPages.reduce<Record<string, string>>((acc: Record<string, string>, page: any) => {
-        if (page.extractedAnswers) {
-          return { ...acc, ...page.extractedAnswers };
-        }
-        return acc;
-      }, {});
+      // Create a new PDF document
+      const doc = new jsPDF();
       
-      // Generate fresh results using Excel file
-      let tableData;
+      // Add title
+      doc.setFontSize(18);
+      doc.text('Test Results', 105, 15, { align: 'center' });
       
-      if (excelFile && columnMap) {
-        // Generate fresh results from Excel for better accuracy
-        console.log("Generating fresh results for PDF export");
-        const freshResults = await generateFreshResults(excelFile, columnMap, studentAnswers);
-        
-        tableData = freshResults.map((result: any) => [
-          result.questionNumber,
-          result.studentAnswer || '—',
-          result.expectedAnswer || '—',
-          `${result.earnedPoints}/${result.points}`,
-          result.correct ? 'Correct' : 'Incorrect'
-        ]);
-        
-        // Calculate totals for summary
-        const totalPoints = freshResults.reduce((sum: number, r: any) => sum + r.points, 0);
-        const earnedPoints = freshResults.reduce((sum: number, r: any) => sum + r.earnedPoints, 0);
-        const scorePercentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-        
-        // Create a new PDF document
-        const doc = new jsPDF();
-        
-        // Add title
-        doc.setFontSize(18);
-        doc.text('Test Results', 105, 15, { align: 'center' });
-        
-        // Add summary with fresh data
-        doc.setFontSize(12);
-        doc.text(`Score: ${scorePercentage}% (${earnedPoints}/${totalPoints} points)`, 105, 25, { align: 'center' });
-        doc.setFontSize(10);
-        doc.text('Generated with fresh Excel data', 105, 32, { align: 'center' });
-        
-        // Add detailed results table
-        (doc as any).autoTable({
-          head: [['Q #', 'Student Answer', 'Expected Answer', 'Points', 'Status']],
-          body: tableData,
-          startY: 38,
-          theme: 'grid',
-          headStyles: { fillColor: [37, 99, 235] }
-        });
-        
-        // Save the PDF
-        doc.save('test-results.pdf');
-      } else {
-        // Fall back to stored results if Excel data isn't available
-        console.log("Falling back to stored results for PDF export");
-        
-        // Create a new PDF document
-        const doc = new jsPDF();
-        
-        // Add title
-        doc.setFontSize(18);
-        doc.text('Test Results', 105, 15, { align: 'center' });
-        
-        // Add summary
-        doc.setFontSize(12);
-        doc.text(`Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`, 105, 25, { align: 'center' });
-        
-        // Add detailed results table
-        tableData = detailedResults.map((result: any) => [
-          result.questionNumber,
-          result.studentAnswer,
-          result.expectedAnswer,
-          `${result.earnedPoints}/${result.points}`,
-          result.correct ? 'Correct' : 'Incorrect'
-        ]);
-        
-        (doc as any).autoTable({
-          head: [['Q #', 'Student Answer', 'Expected Answer', 'Points', 'Status']],
-          body: tableData,
-          startY: 35,
-          theme: 'grid',
-          headStyles: { fillColor: [37, 99, 235] }
-        });
-        
-        // Save the PDF
-        doc.save('test-results.pdf');
-      }
+      // Add summary
+      doc.setFontSize(12);
+      doc.text(`Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`, 105, 25, { align: 'center' });
+      
+      // Add detailed results table
+      const tableData = detailedResults.map(result => [
+        result.questionNumber,
+        result.studentAnswer,
+        result.expectedAnswer,
+        `${result.earnedPoints}/${result.points}`,
+        result.correct ? 'Correct' : 'Incorrect'
+      ]);
+      
+      (doc as any).autoTable({
+        head: [['Q #', 'Student Answer', 'Expected Answer', 'Points', 'Status']],
+        body: tableData,
+        startY: 35,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235] }
+      });
+      
+      // Save the PDF
+      doc.save('test-results.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
     } finally {
       setExportingPdf(false);
     }
-  }, [testResult, detailedResults, excelFile, columnMap, capturedPages]);
+  }, [testResult, detailedResults]);
   
   // Handle sharing results
   const handleShare = useCallback(async () => {
@@ -150,45 +88,17 @@ export default function ResultsStep() {
         return;
       }
       
-      // Try to get fresh results first if Excel file exists
-      let shareText = '';
+      const blob = await handleExportPDF();
       
-      if (excelFile && columnMap && capturedPages.length > 0) {
-        // Gather student answers from all pages
-        const studentAnswers = capturedPages.reduce<Record<string, string>>((acc: Record<string, string>, page: any) => {
-          if (page.extractedAnswers) {
-            return { ...acc, ...page.extractedAnswers };
-          }
-          return acc;
-        }, {});
-        
-        // Generate fresh results
-        const freshResults = await generateFreshResults(excelFile, columnMap, studentAnswers);
-        
-        // Calculate totals for sharing text
-        const totalPoints = freshResults.reduce((sum: number, r: any) => sum + r.points, 0);
-        const earnedPoints = freshResults.reduce((sum: number, r: any) => sum + r.earnedPoints, 0);
-        const scorePercentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-        
-        shareText = `Score: ${scorePercentage}% (${earnedPoints}/${totalPoints} points) [Fresh data]`;
-      } else {
-        // Fall back to stored results
-        shareText = `Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`;
-      }
-      
-      // Generate PDF (will also generate new result data)
-      await handleExportPDF();
-      
-      // Share the result text
       await navigator.share({
         title: 'Test Results',
-        text: shareText,
+        text: `Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`,
         // files: [new File([blob], 'test-results.pdf', { type: 'application/pdf' })]
       });
     } catch (error) {
       console.error('Error sharing results:', error);
     }
-  }, [testResult, handleExportPDF, excelFile, columnMap, capturedPages]);
+  }, [testResult, handleExportPDF]);
   
   if (!testResult) {
     return (
@@ -247,9 +157,43 @@ export default function ResultsStep() {
         </div>
       </div>
       
-      {/* Fresh Detailed Results - using direct Excel file data */}
+      {/* Detailed Results */}
       <div className="mb-5">
-        <FreshDetailedResults />
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-gray-50 p-3 border-b border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700">Detailed Results</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Q #</TableHead>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Answer</TableHead>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Answer</TableHead>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</TableHead>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detailedResults.map((result) => (
+                  <TableRow key={result.questionNumber}>
+                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.questionNumber}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.studentAnswer}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.expectedAnswer}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.earnedPoints}/{result.points}</TableCell>
+                    <TableCell className="px-4 py-3">
+                      {result.correct ? (
+                        <span className="material-icons text-success">check_circle</span>
+                      ) : (
+                        <span className="material-icons text-error">cancel</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
       
       <div className="flex justify-between">
