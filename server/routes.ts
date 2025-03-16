@@ -187,8 +187,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Try to get the page directly using the getPage method
         page = await storage.getPage(id);
-      } catch (pageError) {
-        console.log(`Error finding page with ID ${id} directly: ${pageError.message}`);
+      } catch (error) {
+        console.log(`Error finding page with ID ${id} directly: ${String(error)}`);
         
         // Fallback: Try to find the page from all pages
         const allPages = await storage.getPages(0); // Get all pages

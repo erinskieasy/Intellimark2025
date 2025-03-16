@@ -114,3 +114,16 @@ export const resultItemSchema = z.object({
 });
 
 export type ResultItem = z.infer<typeof resultItemSchema>;
+
+// Schema for Excel column mapping
+export const excelColumnMapSchema = z.object({
+  questionNumberCol: z.string(),
+  expectedAnswerCol: z.string(),
+  pointsCol: z.string(),
+});
+
+export type ExcelColumnMap = z.infer<typeof excelColumnMapSchema>;
+
+// Schema for Excel preview data
+export const excelPreviewRowSchema = z.record(z.string(), z.union([z.string(), z.number()]));
+export type ExcelPreviewRow = z.infer<typeof excelPreviewRowSchema>;
