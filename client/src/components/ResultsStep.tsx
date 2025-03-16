@@ -207,17 +207,12 @@ export default function ResultsStep() {
         </Button>
         <div className="flex space-x-3">
           <Button
-            onClick={handleExportPDF}
-            disabled={exportingPdf}
+            onClick={() => setStep('capture')}
             variant="secondary"
             className="bg-gray-800 hover:bg-gray-900 text-white"
           >
-            {exportingPdf ? (
-              <span className="material-icons animate-spin mr-1 text-sm">sync</span>
-            ) : (
-              <span className="material-icons mr-1 text-sm">download</span>
-            )}
-            Export PDF
+            <span className="material-icons mr-1 text-sm">add_a_photo</span>
+            Next Paper
           </Button>
           <Button
             onClick={handleNewTest}
