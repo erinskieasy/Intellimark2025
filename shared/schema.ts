@@ -127,3 +127,20 @@ export type ExcelColumnMap = z.infer<typeof excelColumnMapSchema>;
 // Schema for Excel preview data
 export const excelPreviewRowSchema = z.record(z.string(), z.union([z.string(), z.number()]));
 export type ExcelPreviewRow = z.infer<typeof excelPreviewRowSchema>;
+
+// Schema for student answers from Excel
+export const studentExcelDataSchema = z.object({
+  rowIndex: z.number().int().nonnegative(),
+  studentId: z.string().optional(),
+  studentName: z.string().optional(),
+  answers: z.record(z.string(), z.string()),
+});
+export type StudentExcelData = z.infer<typeof studentExcelDataSchema>;
+
+// Schema for Excel data column mapping for student answers
+export const studentAnswerColumnMapSchema = z.object({
+  studentIdCol: z.string().optional(),
+  studentNameCol: z.string().optional(),
+  answerColumns: z.record(z.string(), z.string()), // Question number to column name mapping
+});
+export type StudentAnswerColumnMap = z.infer<typeof studentAnswerColumnMapSchema>;
