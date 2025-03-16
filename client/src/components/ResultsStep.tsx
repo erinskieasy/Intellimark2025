@@ -13,9 +13,11 @@ import { Progress } from '@/components/ui/progress';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { MarkSchemePreview } from './MarkSchemePreview';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
+  const { toast } = useToast();
 
   const { 
     testResult, 
@@ -102,6 +104,25 @@ export default function ResultsStep() {
       console.error('Error sharing results:', error);
     }
   }, [testResult, handleExportPDF]);
+  
+  // Handle next paper button
+  const handleNextPaper = useCallback(() => {
+    // Clear captured pages and reset processing state
+    clearCapturedPages();
+    
+    // Reset results
+    setTestResult(null);
+    setDetailedResults([]);
+    
+    // Show success message
+    toast({
+      title: 'Ready for next paper',
+      description: 'Previous images and results have been cleared.'
+    });
+    
+    // Navigate to capture page
+    setStep('capture');
+  }, [clearCapturedPages, setTestResult, setDetailedResults, setStep, toast]);
 
   if (!testResult) {
     return (
@@ -210,12 +231,7 @@ export default function ResultsStep() {
         </Button>
         <div className="flex space-x-3">
           <Button
-            onClick={() => {
-              clearCapturedPages(); // This clears the captured pages and resets processing state
-              setTestResult(null); // Reset the test result
-              setDetailedResults([]); // Reset the detailed results
-              setStep('capture');
-            }}
+            onClick={handleNextPaper}
             variant="secondary"
             className="bg-gray-800 hover:bg-gray-900 text-white"
           >
