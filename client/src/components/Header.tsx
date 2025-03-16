@@ -13,7 +13,7 @@ export function Header({ onSettingsClick }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center">
           <span className="material-icons text-primary mr-2">school</span>
-          <h1 className="text-xl font-semibold text-gray-800">Intellibus</h1>
+          <h1 className="text-xl font-semibold text-gray-800">IntelliMark 2025</h1>
           {currentTest && (
             <span className="ml-3 text-sm text-gray-500">
               {currentTest.name}
