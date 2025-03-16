@@ -33,24 +33,43 @@ export default function ResultsStep() {
     currentTest
   } = useTestGrader();
 
-  // Fetch fresh results when component mounts
+  // Fetch fresh results when component mounts or test result changes
   useEffect(() => {
     const fetchFreshResults = async () => {
-      if (!currentTest?.id) return;
+      // If we don't have a test or the test result is null, we should reset detailed results
+      if (!currentTest?.id || !testResult) {
+        console.log('No currentTest or testResult, clearing detailed results');
+        setDetailedResults([]);
+        return;
+      }
       
       try {
+        console.log(`Fetching fresh detailed results for test ${currentTest.id}`);
         const detailedRes = await fetch(`/api/results/${currentTest.id}/detailed`, {
           credentials: 'include'
         });
+        
+        if (!detailedRes.ok) {
+          console.error(`Error fetching detailed results: ${detailedRes.statusText}`);
+          setDetailedResults([]);
+          return;
+        }
+        
         const freshDetailedResults = await detailedRes.json();
-        setDetailedResults(freshDetailedResults);
+        console.log(`Received ${freshDetailedResults.length} detailed results`);
+        
+        // Use a timeout to ensure React batch updates work correctly
+        setTimeout(() => {
+          setDetailedResults(freshDetailedResults);
+        }, 0);
       } catch (error) {
         console.error('Error fetching fresh results:', error);
+        setDetailedResults([]);
       }
     };
 
     fetchFreshResults();
-  }, [currentTest, setDetailedResults]);
+  }, [currentTest, testResult, setDetailedResults]);
 
   // Handle back button
   const handleBack = useCallback(() => {
@@ -132,18 +151,27 @@ export default function ResultsStep() {
     // Clear captured pages and reset processing state
     clearCapturedPages();
     
-    // Reset results
+    // Force reset of results state
     setTestResult(null);
+    
+    // Create a completely new empty array for detailed results
+    // This ensures React detects the change and re-renders the component
     setDetailedResults([]);
     
-    // Show success message
-    toast({
-      title: 'Ready for next paper',
-      description: 'Previous images and results have been cleared.'
-    });
+    // Log for debug
+    console.log('Next Paper clicked: Detailed results reset to []');
     
-    // Navigate to capture page
-    setStep('capture');
+    // Add a small delay before navigating to ensure state is updated
+    setTimeout(() => {
+      // Show success message
+      toast({
+        title: 'Ready for next paper',
+        description: 'Previous images and results have been cleared.'
+      });
+      
+      // Navigate to capture page
+      setStep('capture');
+    }, 50);
   }, [clearCapturedPages, setTestResult, setDetailedResults, setStep, toast]);
 
   if (!testResult) {
@@ -210,7 +238,7 @@ export default function ResultsStep() {
             <h3 className="text-sm font-medium text-gray-700">Detailed Results</h3>
           </div>
           <div className="overflow-x-auto">
-            <Table>
+            <Table key={`results-table-${detailedResults.length}-${Date.now()}`}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Q #</TableHead>
@@ -221,21 +249,29 @@ export default function ResultsStep() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detailedResults.map((result) => (
-                  <TableRow key={result.questionNumber}>
-                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.questionNumber}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.studentAnswer}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.expectedAnswer}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-gray-900">{result.earnedPoints}/{result.points}</TableCell>
-                    <TableCell className="px-4 py-3">
-                      {result.correct ? (
-                        <span className="material-icons text-success">check_circle</span>
-                      ) : (
-                        <span className="material-icons text-error">cancel</span>
-                      )}
+                {detailedResults && detailedResults.length > 0 ? (
+                  detailedResults.map((result) => (
+                    <TableRow key={`row-${result.questionNumber}`}>
+                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.questionNumber}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.studentAnswer}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.expectedAnswer}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.earnedPoints}/{result.points}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        {result.correct ? (
+                          <span className="material-icons text-success">check_circle</span>
+                        ) : (
+                          <span className="material-icons text-error">cancel</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="px-4 py-3 text-sm text-gray-900 text-center">
+                      No detailed results available
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
