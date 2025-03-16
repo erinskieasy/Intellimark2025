@@ -17,126 +17,161 @@ export function Webcam({
 }: WebcamProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [facingMode, setFacingMode] = useState<string>('environment');
+  const [isMounted, setIsMounted] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
-  const initTimeoutRef = useRef<number | null>(null);
+  const [showCamera, setShowCamera] = useState(true);
+  
+  // Show debug info to help troubleshoot
+  const [debugInfo, setDebugInfo] = useState<{
+    hasUserMedia: boolean;
+    videoElementExists: boolean;
+    readyState: number | null;
+    videoWidth: number | null;
+    videoHeight: number | null;
+    initAttempts: number;
+  }>({
+    hasUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+    videoElementExists: false,
+    readyState: null,
+    videoWidth: null,
+    videoHeight: null,
+    initAttempts: 0
+  });
+  
+  // Update debug info
+  const updateDebugInfo = useCallback(() => {
+    if (!videoRef.current) {
+      setDebugInfo(prev => ({
+        ...prev,
+        videoElementExists: false
+      }));
+      return;
+    }
+    
+    setDebugInfo(prev => ({
+      ...prev,
+      videoElementExists: true,
+      readyState: videoRef.current?.readyState || null,
+      videoWidth: videoRef.current?.videoWidth || null,
+      videoHeight: videoRef.current?.videoHeight || null
+    }));
+  }, []);
 
-  // Camera initialization function - completely rewritten for stability
+  // Set mounted state
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  // Camera initialization function - simplified version
   const initCamera = useCallback(async () => {
-    // Prevent multiple simultaneous initialization attempts
-    if (isInitializing) return;
+    // Prevent multiple initialization attempts
+    if (isInitializing || !isMounted) return;
+    
     setIsInitializing(true);
+    setDebugInfo(prev => ({ 
+      ...prev, 
+      initAttempts: prev.initAttempts + 1 
+    }));
+    
+    console.log("🔄 Starting camera initialization (attempt " + (debugInfo.initAttempts + 1) + ")");
     
     try {
-      // Clean up any existing stream first
+      // Clean up previous stream
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop();
-        });
+        console.log("🛑 Stopping previous stream tracks");
+        streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
       }
       
       setCameraReady(false);
       setError(null);
       
-      console.log("Starting camera initialization...");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("getUserMedia not supported in this browser");
+      }
       
-      // Basic constraints that work on most devices
-      const constraints: MediaStreamConstraints = {
+      // Extremely basic constraints for maximum compatibility
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false
-      };
+      });
       
-      // Get a raw stream first with minimal constraints
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("✅ Stream obtained:", stream.id, "with", stream.getVideoTracks().length, "video tracks");
+      
+      // Store stream reference
       streamRef.current = stream;
       
       if (videoRef.current) {
+        // Set srcObject to null first to reset any previous state
+        videoRef.current.srcObject = null;
+        
+        // Small delay before setting new stream
+        await new Promise(r => setTimeout(r, 100));
+        
         // Attach stream to video element
         videoRef.current.srcObject = stream;
+        console.log("🎥 Stream attached to video element");
         
-        // Wait for video to be ready
-        await new Promise<void>((resolve) => {
-          if (!videoRef.current) {
-            resolve();
-            return;
-          }
-          
-          const handleCanPlay = () => {
-            console.log("Video can play now");
-            resolve();
-            videoRef.current?.removeEventListener('canplay', handleCanPlay);
-          };
-          
-          // If video is already ready
-          if (videoRef.current.readyState >= 3) {
-            resolve();
-          } else {
-            videoRef.current.addEventListener('canplay', handleCanPlay);
-          }
-        });
+        updateDebugInfo();
         
-        // Now try to play
-        try {
-          await videoRef.current.play();
-          console.log("Video playback started");
-          setCameraReady(true);
-        } catch (e) {
-          console.error("Video playback failed:", e);
-          throw e;
+        // Play the video with manual handling
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log("▶️ Video playback started successfully");
+              setCameraReady(true);
+              updateDebugInfo();
+            })
+            .catch(error => {
+              console.error("❌ Video playback failed:", error);
+              // Try one more time with user interaction
+              setError("Camera initialization failed. Please try again.");
+            });
         }
+      } else {
+        console.error("❌ Video element not found");
+        setError("Camera element not found. Please reload the page.");
       }
     } catch (err) {
-      console.error('Camera initialization failed:', err);
-      setError('Could not access camera. Please grant permission and try again.');
+      console.error('❌ Camera access error:', err);
+      setError('Could not access camera. Please check permissions and try again.');
       
-      // If the video element exists, clear it
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
     } finally {
+      updateDebugInfo();
       setIsInitializing(false);
     }
-  }, [facingMode]);
+  }, [isMounted, isInitializing, debugInfo.initAttempts, updateDebugInfo]);
 
-  // Initialize camera on component mount
+  // Initialize camera on component mount - with initialization flag to prevent multiple calls
   useEffect(() => {
-    // We'll use a timeout to avoid race conditions and ensure DOM is ready
-    initTimeoutRef.current = window.setTimeout(() => {
-      initCamera();
-    }, 500);
+    if (!isMounted) return;
+    
+    // Flag to prevent multiple initialization attempts
+    let hasInitialized = false;
+    
+    const timer = setTimeout(() => {
+      if (!hasInitialized) {
+        hasInitialized = true;
+        console.log("🚀 Initial camera initialization");
+        initCamera();
+      }
+    }, 1000); // Longer delay for DOM to be completely ready
     
     return () => {
-      // Cleanup function - make sure to cancel any pending operations
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
+      clearTimeout(timer);
+      console.log("🧹 Cleaning up camera resources");
       
-      // Stop all tracks
+      // Stop stream on unmount
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop();
-        });
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
-    };
-  }, [initCamera]);
-
-  // Monitor video element for errors
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-    
-    const handleError = (e: Event) => {
-      console.error("Video element error:", e);
-      setCameraReady(false);
-    };
-    
-    videoElement.addEventListener('error', handleError);
-    
-    return () => {
-      videoElement.removeEventListener('error', handleError);
     };
   }, []);
 
@@ -163,20 +198,24 @@ export function Webcam({
       }
     } catch (err) {
       console.error("Error capturing image:", err);
+      setError("Failed to capture image. Please try again.");
     }
   }, [onCapture, cameraReady]);
 
-  // Handle camera switch
-  const toggleFacing = useCallback(() => {
-    // Simply use the "Add from Gallery" option for now
-    setError("Camera switching is currently unavailable. Please use the 'Add from Gallery' option instead.");
-    
-    /* Disabled facing mode toggle since it's causing instability
-    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
-    // Re-init camera with new facing mode
-    initCamera();
-    */
-  }, []);
+  // Toggle camera visibility
+  const toggleCamera = useCallback(() => {
+    if (showCamera) {
+      // Stop camera when hiding
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      setShowCamera(false);
+    } else {
+      setShowCamera(true);
+      // Re-initialize camera when showing
+      initCamera();
+    }
+  }, [showCamera, initCamera]);
 
   return (
     <div className={cn("relative rounded-lg overflow-hidden", className)}>
@@ -188,23 +227,35 @@ export function Webcam({
             <Button onClick={initCamera} variant="outline" disabled={isInitializing}>
               {isInitializing ? 'Initializing...' : 'Retry Camera Access'}
             </Button>
-            <p className="text-xs mt-2">
-              If camera access fails, try using the "Add from Gallery" option below.
-            </p>
+            
+            <div className="mt-4 text-xs text-left p-2 bg-black/50 rounded">
+              <p className="font-bold mb-1">Debug Info:</p>
+              <p>Has getUserMedia: {debugInfo.hasUserMedia ? 'Yes' : 'No'}</p>
+              <p>Video element: {debugInfo.videoElementExists ? 'Yes' : 'No'}</p>
+              <p>Ready state: {debugInfo.readyState !== null ? debugInfo.readyState : 'N/A'}</p>
+              <p>Resolution: {debugInfo.videoWidth || 0} x {debugInfo.videoHeight || 0}</p>
+              <p>Init attempts: {debugInfo.initAttempts}</p>
+            </div>
           </div>
         </div>
       ) : (
         <>
           <div className="bg-gray-900 w-full" style={{ aspectRatio: aspectRatio || 4/3 }}>
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className="w-full h-full object-cover"
-            />
+            {showCamera ? (
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-800 text-white">
+                <p>Camera is disabled</p>
+              </div>
+            )}
             
-            {!cameraReady && (
+            {showCamera && !cameraReady && (
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 text-white">
                 <div className="flex flex-col items-center">
                   <span className="material-icons animate-spin mb-2">sync</span>
@@ -215,25 +266,26 @@ export function Webcam({
           </div>
           
           <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4">
-            <Button 
-              onClick={captureImage}
-              disabled={!cameraReady}
-              className="bg-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg hover:bg-gray-100 p-0"
-            >
-              <div className="bg-primary rounded-full w-12 h-12"></div>
-            </Button>
-            
-            {withFacingToggle && (
+            {showCamera && (
               <Button 
-                onClick={toggleFacing}
-                disabled={!cameraReady || isInitializing}
-                variant="secondary"
-                size="sm"
-                className="absolute bottom-0 right-4 rounded-full"
+                onClick={captureImage}
+                disabled={!cameraReady}
+                className="bg-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg hover:bg-gray-100 p-0"
               >
-                <span className="material-icons">flip_camera_android</span>
+                <div className="bg-primary rounded-full w-12 h-12"></div>
               </Button>
             )}
+            
+            <Button 
+              onClick={toggleCamera}
+              variant="secondary"
+              size="sm"
+              className="absolute bottom-0 left-4 rounded-full"
+            >
+              <span className="material-icons">
+                {showCamera ? 'videocam_off' : 'videocam'}
+              </span>
+            </Button>
           </div>
         </>
       )}
