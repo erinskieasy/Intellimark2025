@@ -90,6 +90,13 @@ export default function MarkSchemeStep() {
         
         // Open column mapping dialog if we have columns
         if (columns.length > 0) {
+          // Initialize empty column mapping
+          setColumnMapping({
+            questionNumberCol: '',
+            expectedAnswerCol: '',
+            pointsCol: ''
+          });
+          
           setColumnMappingDialogOpen(true);
         }
       } catch (error) {
@@ -112,14 +119,10 @@ export default function MarkSchemeStep() {
     });
   }, [toast]);
   
-  // Guess column mappings (try to find appropriate columns automatically)
-  const guessColumnMappings = useCallback(() => {
-    // Define variants for each column type with more comprehensive matching
-    const questionNumVariants = ['question', 'q', 'num', 'number', '#', 'question number', 'question #', 'q#'];
-    const answerVariants = ['answer', 'key', 'correct', 'expected', 'expected answer', 'answer key'];
-    const pointsVariants = ['point', 'score', 'mark', 'value', 'points', 'marks', 'point value'];
-    
-    let guessedMapping: ExcelColumnMap = {
+  // Initialize empty column mapping
+  const initializeEmptyColumnMapping = useCallback(() => {
+    // Create an empty mapping object
+    const emptyMapping: ExcelColumnMap = {
       questionNumberCol: '',
       expectedAnswerCol: '',
       pointsCol: ''
@@ -128,49 +131,15 @@ export default function MarkSchemeStep() {
     // Log available columns for debugging
     console.log("Available columns for mapping:", excelColumns);
     
-    excelColumns.forEach(column => {
-      const lowerColumn = column.toLowerCase();
-      console.log(`Checking column "${column}" (lowercase: "${lowerColumn}")`);
-      
-      // Check for question number column
-      if (!guessedMapping.questionNumberCol && 
-          questionNumVariants.some(v => lowerColumn.includes(v.toLowerCase()))) {
-        console.log(`  Matched question number column: "${column}"`);
-        guessedMapping.questionNumberCol = column;
-      }
-      
-      // Check for answer column
-      if (!guessedMapping.expectedAnswerCol && 
-          answerVariants.some(v => lowerColumn.includes(v.toLowerCase()))) {
-        console.log(`  Matched expected answer column: "${column}"`);
-        guessedMapping.expectedAnswerCol = column;
-      }
-      
-      // Check for points column
-      if (!guessedMapping.pointsCol && 
-          pointsVariants.some(v => lowerColumn.includes(v.toLowerCase()))) {
-        console.log(`  Matched points column: "${column}"`);
-        guessedMapping.pointsCol = column;
-      }
+    // Set the empty mapping
+    setColumnMapping(emptyMapping);
+    
+    // Notify user they need to select columns
+    toast({
+      title: "Column Mapping",
+      description: "Please select the columns that contain question numbers, answers, and points.",
+      variant: "default"
     });
-    
-    console.log("Guessed column mapping:", guessedMapping);
-    setColumnMapping(guessedMapping);
-    
-    // Add toast notification to show the mapping result
-    if (guessedMapping.questionNumberCol && guessedMapping.expectedAnswerCol && guessedMapping.pointsCol) {
-      toast({
-        title: "Column Mapping",
-        description: "Successfully mapped all columns automatically!",
-        variant: "default"
-      });
-    } else {
-      toast({
-        title: "Column Mapping",
-        description: "Some columns couldn't be matched automatically. Please select them manually.",
-        variant: "destructive"
-      });
-    }
   }, [excelColumns, toast]);
 
   // Handle column selection
@@ -451,11 +420,11 @@ export default function MarkSchemeStep() {
             <div className="mt-4">
               <Button 
                 variant="outline" 
-                onClick={guessColumnMappings}
+                onClick={initializeEmptyColumnMapping}
                 className="w-full"
               >
-                <span className="material-icons mr-1">auto_awesome</span>
-                Auto-Detect Columns
+                <span className="material-icons mr-1">assignment</span>
+                Initialize Column Selection
               </Button>
             </div>
           </DialogHeader>
