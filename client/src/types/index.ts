@@ -45,6 +45,8 @@ export interface Settings {
   answerRecognitionInstructions: string;
   enhancedRecognition: boolean;
   confidenceThreshold: number;
+  temperature?: number;
+  topP?: number;
 }
 
 export interface ExtractedAnswerResponse {

@@ -36,15 +36,19 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // Query to get current settings
   const { data: settings, isLoading } = useQuery({
     queryKey: ['/api/settings'],
-    queryFn: getOpenAISettings,
-    onSuccess: (data) => {
-      setAnswerRecognitionInstructions(data.answerRecognitionInstructions);
-      setEnhancedRecognition(data.enhancedRecognition);
-      setConfidenceThreshold(data.confidenceThreshold);
-      if (data.temperature !== undefined) setTemperature(data.temperature);
-      if (data.topP !== undefined) setTopP(data.topP);
-    }
+    queryFn: getOpenAISettings
   });
+  
+  // Update local state when settings data changes
+  useEffect(() => {
+    if (settings) {
+      setAnswerRecognitionInstructions(settings.answerRecognitionInstructions);
+      setEnhancedRecognition(settings.enhancedRecognition);
+      setConfidenceThreshold(settings.confidenceThreshold);
+      if (settings.temperature !== undefined) setTemperature(settings.temperature);
+      if (settings.topP !== undefined) setTopP(settings.topP);
+    }
+  }, [settings]);
   
   // Mutation to update settings
   const updateSettingsMutation = useMutation({
