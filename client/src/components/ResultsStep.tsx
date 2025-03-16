@@ -207,10 +207,7 @@ export default function ResultsStep() {
         </Button>
         <div className="flex space-x-3">
           <Button
-            onClick={() => {
-              clearCapturedPages();
-              setStep('capture');
-            }}
+            onClick={() => setStep('capture')}
             variant="secondary"
             className="bg-gray-800 hover:bg-gray-900 text-white"
           >
