@@ -43,7 +43,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let parsedData;
       try {
         parsedData = JSON.parse(markSchemeData);
-        console.log("Received mark scheme data:", JSON.stringify(parsedData).substring(0, 100) + "...");
+        console.log("Received mark scheme data:", JSON.stringify(parsedData, null, 2));
+        // Log the first few entries in detail
+        if (Array.isArray(parsedData) && parsedData.length > 0) {
+          console.log("First 3 mark scheme entries before validation:");
+          parsedData.slice(0, 3).forEach((entry, index) => {
+            console.log(`Entry ${index}:`, JSON.stringify(entry, null, 2));
+            console.log(`  questionNumber type: ${typeof entry.questionNumber}`);
+            console.log(`  expectedAnswer type: ${typeof entry.expectedAnswer}`);
+            console.log(`  expectedAnswer value: "${entry.expectedAnswer}"`);
+            console.log(`  points type: ${typeof entry.points}`);
+          });
+        }
       } catch (e) {
         return res.status(400).json({ message: "Invalid JSON format in mark scheme data" });
       }
@@ -289,9 +300,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.get("/results/:testId/detailed", async (req: Request, res: Response) => {
     try {
       const testId = parseInt(req.params.testId);
+      console.log(`Getting detailed results for test ${testId}`);
+      
+      // First get the mark scheme to verify it contains data
+      const markScheme = await storage.getMarkScheme(testId);
+      console.log(`Mark scheme for test ${testId} contains ${markScheme.length} entries.`);
+      
+      if (markScheme.length > 0) {
+        console.log("Sample mark scheme entries:");
+        markScheme.slice(0, 3).forEach((entry, index) => {
+          console.log(`Entry ${index}:`, JSON.stringify(entry, null, 2));
+          console.log(`  expectedAnswer type: ${typeof entry.expectedAnswer}`);
+          console.log(`  expectedAnswer value: "${entry.expectedAnswer}"`);
+        });
+      }
+      
       const detailedResults = await storage.getDetailedResults(testId);
+      console.log(`Generated ${detailedResults.length} detailed result items`);
+      
+      if (detailedResults.length > 0) {
+        console.log("Sample result items:");
+        detailedResults.slice(0, 3).forEach((item, index) => {
+          console.log(`Result ${index}:`, JSON.stringify(item, null, 2));
+          console.log(`  expectedAnswer type: ${typeof item.expectedAnswer}`);
+          console.log(`  expectedAnswer value: "${item.expectedAnswer}"`);
+        });
+      }
+      
       res.status(200).json(detailedResults);
     } catch (error) {
+      console.error(`Error getting detailed results for test ${req.params.testId}:`, error);
       res.status(500).json({ message: `Error getting detailed results: ${error instanceof Error ? error.message : String(error)}` });
     }
   });
