@@ -12,7 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { MarkSchemePreview } from './MarkSchemePreview';
+
 
 export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
