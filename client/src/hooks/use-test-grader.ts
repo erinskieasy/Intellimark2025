@@ -258,13 +258,13 @@ export function useTestGraderActions() {
   
   // Get details for the current test
   const { data: testDetails } = useQuery({
-    queryKey: currentTest ? [`/api/tests/${currentTest.id}`] : ['no-test'],
+    queryKey: ['/api/tests', currentTest?.id || 'none'],
     enabled: !!currentTest
   });
   
   // Get mark scheme for the current test
   const { data: testMarkScheme } = useQuery({
-    queryKey: currentTest ? [`/api/mark-scheme/${currentTest.id}`] : ['no-mark-scheme'],
+    queryKey: ['/api/mark-scheme', currentTest?.id || 'none'],
     enabled: !!currentTest
   });
   
