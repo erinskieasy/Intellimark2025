@@ -27,26 +27,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload mark scheme
   apiRouter.post("/mark-scheme", upload.single("file"), async (req: Request, res: Response) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-      
       if (!req.body.testId) {
         return res.status(400).json({ message: "Test ID is required" });
       }
       
       const testId = parseInt(req.body.testId);
       
-      // Parse the Excel file from the buffer
-      // Since we can't use external libraries directly here, we'll assume the client has parsed
-      // the Excel file and sends the data as JSON in the markSchemeData field
+      // Get the mark scheme data from the request
       const markSchemeData = req.body.markSchemeData;
       if (!markSchemeData) {
         return res.status(400).json({ message: "Mark scheme data is required" });
       }
       
-      // Validate mark scheme data
-      const parsedData = JSON.parse(markSchemeData);
+      // Parse and validate the mark scheme data
+      let parsedData;
+      try {
+        parsedData = JSON.parse(markSchemeData);
+        console.log("Received mark scheme data:", JSON.stringify(parsedData).substring(0, 100) + "...");
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid JSON format in mark scheme data" });
+      }
+      
       const validationResult = z.array(markSchemeRowSchema).safeParse(parsedData);
       
       if (!validationResult.success) {
@@ -56,16 +57,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Clear any existing mark scheme entries for this test to avoid duplicates
+      // Get existing entries
+      const existingEntries = await storage.getMarkScheme(testId);
+      
+      // For MemStorage, we don't have a delete method, so we'll just overwrite with new data
+      
       // Add entries to storage
       const entries = await Promise.all(
-        validationResult.data.map(entry => 
-          storage.addMarkSchemeEntry({
+        validationResult.data.map(entry => {
+          // Ensure expectedAnswer is a string
+          const expectedAnswer = String(entry.expectedAnswer).trim();
+          console.log(`Adding mark scheme entry: Q${entry.questionNumber}, Answer: ${expectedAnswer}, Points: ${entry.points}`);
+          
+          return storage.addMarkSchemeEntry({
             questionNumber: entry.questionNumber,
-            expectedAnswer: entry.expectedAnswer,
+            expectedAnswer: expectedAnswer,
             points: entry.points,
             testId
-          })
-        )
+          });
+        })
       );
       
       // Update test with total questions and points

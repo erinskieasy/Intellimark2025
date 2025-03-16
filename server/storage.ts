@@ -72,15 +72,28 @@ export class MemStorage implements IStorage {
   
   // Mark scheme operations
   async getMarkScheme(testId: number): Promise<MarkSchemeEntry[]> {
-    return Array.from(this.markSchemeEntries.values())
+    const entries = Array.from(this.markSchemeEntries.values())
       .filter(entry => entry.testId === testId)
       .sort((a, b) => a.questionNumber - b.questionNumber);
+    
+    console.log("Mark Scheme retrieved:", entries);
+    return entries;
   }
   
   async addMarkSchemeEntry(entry: InsertMarkSchemeEntry): Promise<MarkSchemeEntry> {
     const id = this.currentMarkSchemeEntryId++;
-    const newEntry: MarkSchemeEntry = { ...entry, id };
+    
+    // Ensure expectedAnswer is a string
+    const sanitizedEntry = {
+      ...entry,
+      expectedAnswer: String(entry.expectedAnswer).trim(),
+    };
+    
+    const newEntry: MarkSchemeEntry = { ...sanitizedEntry, id };
     this.markSchemeEntries.set(id, newEntry);
+    
+    console.log(`Added mark scheme entry: Q${newEntry.questionNumber}, Answer: ${newEntry.expectedAnswer}, Points: ${newEntry.points}`);
+    
     return newEntry;
   }
   
