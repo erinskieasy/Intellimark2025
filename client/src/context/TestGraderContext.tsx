@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { MarkSchemeEntry, Page, Test, TestGraderStep, Result, DetailedResultItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { ExcelPreviewRow, ExcelColumnMap } from '@shared/schema';
 
 interface TestGraderContextType {
   // State
@@ -13,6 +14,13 @@ interface TestGraderContextType {
   processingPage: number | null;
   totalProcessingPages: number;
   processingProgress: number;
+  
+  // Excel column mapping state
+  excelFile: File | null;
+  excelPreviewData: ExcelPreviewRow[];
+  excelColumns: string[];
+  columnMap: ExcelColumnMap | null;
+  showColumnMappingDialog: boolean;
   
   // Actions
   setStep: (step: TestGraderStep) => void;
@@ -27,6 +35,13 @@ interface TestGraderContextType {
   updateProcessingStatus: (pageNumber: number, progress: number) => void;
   finishProcessing: () => void;
   resetTestGrader: () => void;
+  
+  // Excel column mapping actions
+  setExcelFile: (file: File | null) => void;
+  setExcelPreviewData: (data: ExcelPreviewRow[]) => void;
+  setExcelColumns: (columns: string[]) => void;
+  setColumnMap: (map: ExcelColumnMap | null) => void;
+  setShowColumnMappingDialog: (show: boolean) => void;
 }
 
 const TestGraderContext = createContext<TestGraderContextType | undefined>(undefined);
@@ -46,6 +61,13 @@ export function TestGraderProvider({ children }: { children: ReactNode }) {
   const [processingPage, setProcessingPage] = useState<number | null>(null);
   const [totalProcessingPages, setTotalProcessingPages] = useState<number>(0);
   const [processingProgress, setProcessingProgress] = useState<number>(0);
+  
+  // State for Excel column mapping
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelPreviewData, setExcelPreviewData] = useState<ExcelPreviewRow[]>([]);
+  const [excelColumns, setExcelColumns] = useState<string[]>([]);
+  const [columnMap, setColumnMap] = useState<ExcelColumnMap | null>(null);
+  const [showColumnMappingDialog, setShowColumnMappingDialog] = useState<boolean>(false);
   
   // Navigate between steps
   const setStep = useCallback((step: TestGraderStep) => {
@@ -108,6 +130,13 @@ export function TestGraderProvider({ children }: { children: ReactNode }) {
     setProcessingPage(null);
     setTotalProcessingPages(0);
     setProcessingProgress(0);
+    
+    // Reset Excel column mapping state
+    setExcelFile(null);
+    setExcelPreviewData([]);
+    setExcelColumns([]);
+    setColumnMap(null);
+    setShowColumnMappingDialog(false);
   }, []);
   
   const value = {
@@ -122,6 +151,13 @@ export function TestGraderProvider({ children }: { children: ReactNode }) {
     totalProcessingPages,
     processingProgress,
     
+    // Excel column mapping state
+    excelFile,
+    excelPreviewData,
+    excelColumns,
+    columnMap,
+    showColumnMappingDialog,
+    
     // Actions
     setStep,
     setCurrentTest,
@@ -134,7 +170,14 @@ export function TestGraderProvider({ children }: { children: ReactNode }) {
     startProcessing,
     updateProcessingStatus,
     finishProcessing,
-    resetTestGrader
+    resetTestGrader,
+    
+    // Excel column mapping actions
+    setExcelFile,
+    setExcelPreviewData,
+    setExcelColumns,
+    setColumnMap,
+    setShowColumnMappingDialog
   };
   
   return (

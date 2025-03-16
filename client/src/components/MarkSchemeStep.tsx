@@ -26,6 +26,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { parseExcelForPreview, parseExcelWithColumnMap } from '@/lib/utils';
+import { ExcelColumnMap } from '@shared/schema';
 
 export default function MarkSchemeStep() {
   const [file, setFile] = useState<File | null>(null);
