@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { SimpleWebcam } from '@/components/ui/simple-webcam';
 import { useTestGrader } from '@/context/TestGraderContext';
@@ -9,17 +9,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function CaptureStep() {
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    const shouldClear = localStorage.getItem('shouldClearCaptures');
-    if (shouldClear === 'true') {
-      clearCapturedPages();
-      localStorage.removeItem('shouldClearCaptures');
-    }
-  }, [clearCapturedPages]);
-
+  const isMobile = useIsMobile();
   const { capturedPages, currentTest, setStep, removeCapturedPage, markScheme } = useTestGrader();
   const { captureImageMutation } = useTestGraderActions();
   const { clearCapturedPages } = useTestGrader();

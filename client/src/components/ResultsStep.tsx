@@ -208,7 +208,7 @@ export default function ResultsStep() {
         <div className="flex space-x-3">
           <Button
             onClick={() => {
-              localStorage.setItem('shouldClearCaptures', 'true');
+              clearCapturedPages();
               setStep('capture');
             }}
             variant="secondary"
