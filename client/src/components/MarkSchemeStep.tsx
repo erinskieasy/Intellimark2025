@@ -43,7 +43,11 @@ export default function MarkSchemeStep() {
   const [createTestDialogOpen, setCreateTestDialogOpen] = useState(false);
   const [testName, setTestName] = useState('');
   const [columnMappingDialogOpen, setColumnMappingDialogOpen] = useState(false);
-  const [columnMapping, setColumnMapping] = useState<ExcelColumnMap | null>(null);
+  const [columnMapping, setColumnMapping] = useState<ExcelColumnMap>({
+    questionNumberCol: 'none',
+    expectedAnswerCol: 'none',
+    pointsCol: 'none'
+  });
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Access hooks
