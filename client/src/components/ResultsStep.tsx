@@ -258,7 +258,7 @@ export default function ResultsStep() {
                       <TableCell className={`px-4 py-3 text-sm ${result.correct ? 'text-green-600 font-medium' : 'text-gray-900'}`}>{result.earnedPoints}/{result.points}</TableCell>
                       <TableCell className="px-4 py-3">
                         {result.correct ? (
-                          <span className="material-icons text-success">check_circle</span>
+                          <span className="material-icons text-green-600">check_circle</span>
                         ) : (
                           <span className="material-icons text-error">cancel</span>
                         )}
