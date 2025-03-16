@@ -125,25 +125,83 @@ export default function MarkSchemeStep() {
     });
   }, [toast]);
   
-  // Initialize empty column mapping
+  // Initialize column mapping with best guesses based on column names
   const initializeEmptyColumnMapping = useCallback(() => {
-    // Create an empty mapping object
-    const emptyMapping: ExcelColumnMap = {
-      questionNumberCol: '',
-      expectedAnswerCol: '',
-      pointsCol: ''
-    };
-    
     // Log available columns for debugging
     console.log("Available columns for mapping:", excelColumns);
     
-    // Set the empty mapping
-    setColumnMapping(emptyMapping);
+    // Try to find column names that are likely to contain the right data
+    // This is just a convenience feature - the user can still select different columns
+    let questionCol = '';
+    let answerCol = '';
+    let pointsCol = '';
     
-    // Notify user they need to select columns
+    // Search for common patterns in column names
+    for (const col of excelColumns) {
+      const lowerCol = col.toLowerCase();
+      
+      // Check for question number columns
+      if (
+        lowerCol === 'question_number' ||
+        lowerCol === 'question number' ||
+        lowerCol === 'questionno' ||
+        lowerCol === 'question' ||
+        lowerCol === 'q#' ||
+        lowerCol === 'question#' ||
+        lowerCol === 'qnumber' ||
+        lowerCol === 'q' ||
+        lowerCol.includes('question') && lowerCol.includes('number')
+      ) {
+        questionCol = col;
+      }
+      
+      // Check for answer columns
+      if (
+        lowerCol === 'expected_answer' ||
+        lowerCol === 'expected answer' ||
+        lowerCol === 'answer' ||
+        lowerCol === 'answers' ||
+        lowerCol === 'correct answer' ||
+        lowerCol === 'correct_answer' ||
+        lowerCol === 'solution' ||
+        lowerCol.includes('answer')
+      ) {
+        answerCol = col;
+      }
+      
+      // Check for points columns
+      if (
+        lowerCol === 'points' ||
+        lowerCol === 'point' ||
+        lowerCol === 'marks' ||
+        lowerCol === 'mark' ||
+        lowerCol === 'score' ||
+        lowerCol === 'scores' ||
+        lowerCol === 'value' ||
+        lowerCol === 'worth' ||
+        lowerCol.includes('point') ||
+        lowerCol.includes('mark')
+      ) {
+        pointsCol = col;
+      }
+    }
+    
+    // Create the mapping object based on what we found (possibly empty strings)
+    const mapping: ExcelColumnMap = {
+      questionNumberCol: questionCol,
+      expectedAnswerCol: answerCol,
+      pointsCol: pointsCol
+    };
+    
+    console.log("Initialized column mapping with suggestions:", mapping);
+    
+    // Set the mapping
+    setColumnMapping(mapping);
+    
+    // Notify user they need to verify and possibly update the columns
     toast({
       title: "Column Mapping",
-      description: "Please select the columns that contain question numbers, answers, and points.",
+      description: "Please verify the suggested column mappings and make changes if needed.",
       variant: "default"
     });
   }, [excelColumns, toast]);
@@ -181,7 +239,9 @@ export default function MarkSchemeStep() {
     }
     
     try {
-      // Save the column mapping
+      console.log("Confirming column mapping:", JSON.stringify(columnMapping, null, 2));
+      
+      // Save the column mapping to global context
       setColumnMap(columnMapping);
       
       if (!currentTest) {
@@ -191,46 +251,59 @@ export default function MarkSchemeStep() {
       }
       
       // Parse Excel with the column mapping and immediately use the parsed data
-      const parsedData = await parseExcelWithColumnMap(file, columnMapping) as MarkSchemeEntry[];
-      console.log("Successfully parsed Excel data:", parsedData);
-      
-      // Store the parsed data directly in the context 
-      // This skips the server roundtrip and potential issues
-      setMarkScheme(parsedData);
-      
-      // Still send to server for storage, but don't depend on response for UI
       try {
-        // Create a FormData object to send to the server
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('testId', currentTest.id!.toString());
-        formData.append('markSchemeData', JSON.stringify(parsedData));
+        const parsedData = await parseExcelWithColumnMap(file, columnMapping) as MarkSchemeEntry[];
+        console.log("Successfully parsed Excel data:", parsedData);
         
-        // Send the FormData to the server in the background
-        const response = await fetch('/api/mark-scheme', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          console.warn("Server storage failed, but we're still using the data:", await response.text());
-        } else {
-          console.log("Successfully stored mark scheme on server");
+        if (!parsedData || parsedData.length === 0) {
+          throw new Error("No valid data was parsed from the Excel file.");
         }
-      } catch (serverError) {
-        console.warn("Error storing on server, but we're still using the parsed data:", serverError);
+        
+        // Store the parsed data directly in the context 
+        // This skips the server roundtrip and potential issues
+        setMarkScheme(parsedData);
+        
+        // Still send to server for storage, but don't depend on response for UI
+        try {
+          // Create a FormData object to send to the server
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('testId', currentTest.id!.toString());
+          formData.append('markSchemeData', JSON.stringify(parsedData));
+          
+          // Send the FormData to the server in the background
+          const response = await fetch('/api/mark-scheme', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            console.warn("Server storage failed, but we're still using the data:", await response.text());
+          } else {
+            console.log("Successfully stored mark scheme on server");
+          }
+        } catch (serverError) {
+          console.warn("Error storing on server, but we're still using the parsed data:", serverError);
+        }
+        
+        setColumnMappingDialogOpen(false);
+        
+        toast({
+          title: 'Mark Scheme Loaded',
+          description: `${parsedData.length} questions loaded successfully.`,
+        });
+      } catch (parseError) {
+        console.error("Error parsing Excel with column mapping:", parseError);
+        toast({
+          title: 'Parsing Error',
+          description: parseError instanceof Error ? parseError.message : String(parseError),
+          variant: 'destructive'
+        });
       }
-      
-      setColumnMappingDialogOpen(false);
-      
-      toast({
-        title: 'Mark Scheme Loaded',
-        description: `${parsedData.length} questions loaded successfully.`,
-      });
-      
     } catch (error) {
+      console.error("General error in column mapping confirmation:", error);
       toast({
-        title: 'Parsing Error',
+        title: 'Error',
         description: error instanceof Error ? error.message : String(error),
         variant: 'destructive'
       });
@@ -421,7 +494,14 @@ export default function MarkSchemeStep() {
           <DialogHeader>
             <DialogTitle>Map Excel Columns</DialogTitle>
             <DialogDescription>
-              Please select which columns in your Excel file correspond to the question number, expected answer, and points.
+              <p className="mb-1">
+                Manual column mapping is required - please select which columns in your Excel file 
+                correspond to the question number, expected answer, and points.
+              </p>
+              <p className="text-xs text-yellow-600">
+                Note: You can click the "Auto-Detect Columns" button below to try to automatically identify 
+                columns based on their names, but you'll need to verify the selections.
+              </p>
             </DialogDescription>
             <div className="mt-4">
               <Button 
@@ -429,8 +509,8 @@ export default function MarkSchemeStep() {
                 onClick={initializeEmptyColumnMapping}
                 className="w-full"
               >
-                <span className="material-icons mr-1">assignment</span>
-                Initialize Column Selection
+                <span className="material-icons mr-1">auto_fix_high</span>
+                Auto-Detect Columns
               </Button>
             </div>
           </DialogHeader>
