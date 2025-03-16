@@ -26,28 +26,75 @@ export async function parseExcelMarkScheme(file: File) {
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        // Convert to JSON with default empty values
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        
+        console.log("Raw Excel JSON data (first 3 rows):", JSON.stringify(jsonData.slice(0, 3), null, 2));
         
         // Validate and normalize data
         const markSchemeData = jsonData.map((row: any, index) => {
           // Try to find expected column names or variations
-          const questionNumber = row['Question Number'] || row['QuestionNumber'] || row['Question'] || row['Q#'] || row['Q'] || (index + 1);
-          const expectedAnswer = row['Expected Answer'] || row['ExpectedAnswer'] || row['Answer'] || row['Correct Answer'] || row['CorrectAnswer'];
-          const points = row['Question Points'] || row['QuestionPoints'] || row['Points'] || row['Mark'] || row['Marks'] || row['Score'] || 1;
+          let questionNumber = row['Question Number'] || row['QuestionNumber'] || row['Question'] || row['Q#'] || row['Q'] || (index + 1);
+          let expectedAnswer = row['Expected Answer'] || row['ExpectedAnswer'] || row['Answer'] || row['Correct Answer'] || row['CorrectAnswer'];
+          let points = row['Question Points'] || row['QuestionPoints'] || row['Points'] || row['Mark'] || row['Marks'] || row['Score'] || 1;
+          
+          // Force conversion for question number
+          if (questionNumber === undefined || questionNumber === null) {
+            console.warn(`Warning: Row ${index + 1} has missing question number, using index + 1`);
+            questionNumber = index + 1;
+          }
+          
+          // Special handling for expected answer
+          if (expectedAnswer === undefined || expectedAnswer === null) {
+            console.warn(`Warning: Row ${index + 1} has undefined or null answer, using empty string`);
+            expectedAnswer = "";
+          } else if (expectedAnswer === "undefined" || String(expectedAnswer).toLowerCase() === "undefined") {
+            console.warn(`Warning: Row ${index + 1} has literal "undefined" string, using empty string`);
+            expectedAnswer = "";
+          } else if (expectedAnswer === "") {
+            console.log(`Row ${index + 1} has empty answer, that's ok for blank answers`);
+          } else {
+            // Normalize letter answers to uppercase for consistency
+            const answerStr = String(expectedAnswer).trim();
+            if (/^[A-Za-z]$/.test(answerStr)) {
+              expectedAnswer = answerStr.toUpperCase();
+              console.log(`Normalized answer from "${answerStr}" to "${expectedAnswer}"`);
+            } else {
+              expectedAnswer = answerStr;
+            }
+          }
+          
+          // Force conversion for points
+          if (points === undefined || points === null || points === "") {
+            console.warn(`Warning: Row ${index + 1} has undefined points, using default 1`);
+            points = 1;
+          }
+          
+          console.log(`Row ${index} processing:`, {
+            questionNumber,
+            expectedAnswer,
+            expectedAnswerType: typeof expectedAnswer,
+            expectedAnswerValue: String(expectedAnswer),
+            points
+          });
           
           // Validate the extracted data
           try {
             return markSchemeRowSchema.parse({
               questionNumber: typeof questionNumber === 'number' ? questionNumber : parseInt(questionNumber),
-              expectedAnswer: String(expectedAnswer).trim(),
+              expectedAnswer: String(expectedAnswer), // Force string type
               points: typeof points === 'number' ? points : parseInt(points)
             });
           } catch (error) {
+            console.error(`Row ${index + 1} validation error:`, error);
             throw new Error(`Row ${index + 1} has invalid data: ${error instanceof Error ? error.message : String(error)}`);
           }
         });
         
+        // Log the final processed data
+        console.log("Final processed mark scheme data (first 3 entries):", 
+          JSON.stringify(markSchemeData.slice(0, 3), null, 2));
+          
         resolve(markSchemeData);
       } catch (error) {
         reject(new Error(`Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`));
@@ -167,40 +214,80 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        // Convert to JSON with explicit header mapping
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        
+        console.log("Raw Excel JSON data (first 3 rows):", JSON.stringify(jsonData.slice(0, 3), null, 2));
         
         // Validate and normalize data using the column mapping
         const markSchemeData = jsonData.map((row: any, index) => {
-          const questionNumber = row[columnMap.questionNumberCol];
-          const expectedAnswer = row[columnMap.expectedAnswerCol];
-          const points = row[columnMap.pointsCol] || 1; // Default to 1 point if not specified
+          // Extract values directly from the row using the column mapping
+          let questionNumber = row[columnMap.questionNumberCol];
+          let expectedAnswer = row[columnMap.expectedAnswerCol];
+          let points = row[columnMap.pointsCol] || 1; // Default to 1 point if not specified
+          
+          // Force conversion for question number
+          if (questionNumber === undefined || questionNumber === null) {
+            console.warn(`Warning: Row ${index + 1} has missing question number, using index + 1`);
+            questionNumber = index + 1;
+          }
+          
+          // Special handling for expected answer
+          if (expectedAnswer === undefined || expectedAnswer === null) {
+            console.warn(`Warning: Row ${index + 1} has undefined or null answer, using empty string`);
+            expectedAnswer = "";
+          } else if (expectedAnswer === "undefined" || String(expectedAnswer).toLowerCase() === "undefined") {
+            console.warn(`Warning: Row ${index + 1} has literal "undefined" string, using empty string`);
+            expectedAnswer = "";
+          } else if (expectedAnswer === "") {
+            console.log(`Row ${index + 1} has empty answer, that's ok for blank answers`);
+          } else {
+            // Normalize letter answers to uppercase for consistency
+            const answerStr = String(expectedAnswer).trim();
+            if (/^[A-Za-z]$/.test(answerStr)) {
+              expectedAnswer = answerStr.toUpperCase();
+              console.log(`Normalized answer from "${answerStr}" to "${expectedAnswer}"`);
+            } else {
+              expectedAnswer = answerStr;
+            }
+          }
+          
+          // Force conversion for points
+          if (points === undefined || points === null || points === "") {
+            console.warn(`Warning: Row ${index + 1} has undefined points, using default 1`);
+            points = 1;
+          }
           
           console.log(`Row ${index} processing:`, {
             questionNumber,
             expectedAnswer,
             expectedAnswerType: typeof expectedAnswer,
+            expectedAnswerValue: String(expectedAnswer),
             points
           });
           
-          // Handle undefined or empty expectedAnswer values
-          let normalizedAnswer = expectedAnswer;
-          if (expectedAnswer === undefined || expectedAnswer === null) {
-            console.warn(`Warning: Row ${index + 1} has undefined or null answer, using empty string`);
-            normalizedAnswer = "";
-          }
+          // Create a plain object without going through schema validation yet
+          // This preserves the original data for debugging
+          const rawEntry = {
+            questionNumber: typeof questionNumber === 'number' ? questionNumber : parseInt(questionNumber),
+            expectedAnswer: String(expectedAnswer), // Convert to string even if undefined
+            points: typeof points === 'number' ? points : parseInt(points)
+          };
+          
+          console.log(`Row ${index} normalized:`, rawEntry);
           
           // Validate the extracted data
           try {
-            return markSchemeRowSchema.parse({
-              questionNumber: typeof questionNumber === 'number' ? questionNumber : parseInt(questionNumber),
-              expectedAnswer: String(normalizedAnswer).trim(), // Convert to string even if undefined
-              points: typeof points === 'number' ? points : parseInt(points)
-            });
+            return markSchemeRowSchema.parse(rawEntry);
           } catch (error) {
+            console.error(`Row ${index + 1} validation error:`, error);
             throw new Error(`Row ${index + 1} has invalid data: ${error instanceof Error ? error.message : String(error)}`);
           }
         });
+        
+        // Log the final processed data
+        console.log("Final processed mark scheme data (first 3 entries):", 
+          JSON.stringify(markSchemeData.slice(0, 3), null, 2));
         
         resolve(markSchemeData);
       } catch (error) {

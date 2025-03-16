@@ -84,16 +84,26 @@ export class MemStorage implements IStorage {
   async addMarkSchemeEntry(entry: InsertMarkSchemeEntry): Promise<MarkSchemeEntry> {
     const id = this.currentMarkSchemeEntryId++;
     
-    // Ensure expectedAnswer is a string
+    // Ensure expectedAnswer is a string and handle the 'undefined' string case
+    let expectedAnswer = String(entry.expectedAnswer || "").trim();
+    
+    // Special case: if the string is literally "undefined", make it an empty string
+    if (expectedAnswer.toLowerCase() === "undefined") {
+      console.warn(`Storage: Found literal "undefined" string for Q${entry.questionNumber}, replacing with empty string`);
+      expectedAnswer = "";
+    }
+    
     const sanitizedEntry = {
       ...entry,
-      expectedAnswer: String(entry.expectedAnswer || "").trim(),
+      expectedAnswer: expectedAnswer,
     };
     
     const newEntry: MarkSchemeEntry = { ...sanitizedEntry, id };
     this.markSchemeEntries.set(id, newEntry);
     
-    console.log(`Added mark scheme entry: Q${newEntry.questionNumber}, Answer: ${newEntry.expectedAnswer}, Points: ${newEntry.points}`);
+    console.log(`Added mark scheme entry: Q${newEntry.questionNumber}, Answer: "${newEntry.expectedAnswer}", Points: ${newEntry.points}`);
+    console.log(`  expectedAnswer type: ${typeof expectedAnswer}`);
+    console.log(`  expectedAnswer empty?: ${expectedAnswer === ""}`);
     
     return newEntry;
   }

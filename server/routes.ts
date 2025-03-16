@@ -42,64 +42,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse and validate the mark scheme data
       let parsedData;
       try {
+        // Parse the JSON string into an object
         parsedData = JSON.parse(markSchemeData);
-        console.log("Received mark scheme data:", JSON.stringify(parsedData, null, 2));
+        console.log("=== MARK SCHEME DATA RECEIVED ===");
+        console.log("Raw mark scheme data type:", typeof markSchemeData);
+        console.log("Parsed mark scheme data type:", typeof parsedData);
+        console.log("Is Array?", Array.isArray(parsedData));
+        console.log("Length:", Array.isArray(parsedData) ? parsedData.length : "N/A");
+        
         // Log the first few entries in detail
         if (Array.isArray(parsedData) && parsedData.length > 0) {
-          console.log("First 3 mark scheme entries before validation:");
+          console.log("\nFirst 3 mark scheme entries (detailed):");
           parsedData.slice(0, 3).forEach((entry, index) => {
-            console.log(`Entry ${index}:`, JSON.stringify(entry, null, 2));
-            console.log(`  questionNumber type: ${typeof entry.questionNumber}`);
-            console.log(`  expectedAnswer type: ${typeof entry.expectedAnswer}`);
-            console.log(`  expectedAnswer value: "${entry.expectedAnswer}"`);
-            console.log(`  points type: ${typeof entry.points}`);
+            console.log(`\nEntry ${index}:`, JSON.stringify(entry, null, 2));
+            console.log(`  questionNumber: ${entry.questionNumber} (${typeof entry.questionNumber})`);
+            console.log(`  expectedAnswer: "${entry.expectedAnswer}" (${typeof entry.expectedAnswer})`);
+            console.log(`  points: ${entry.points} (${typeof entry.points})`);
           });
         }
       } catch (e) {
-        return res.status(400).json({ message: "Invalid JSON format in mark scheme data" });
+        console.error("JSON parse error:", e);
+        return res.status(400).json({ 
+          message: "Invalid JSON format in mark scheme data",
+          error: e instanceof Error ? e.message : String(e)
+        });
       }
       
+      // Validate the parsed data against our schema
       const validationResult = z.array(markSchemeRowSchema).safeParse(parsedData);
       
       if (!validationResult.success) {
+        console.error("Validation error:", validationResult.error);
         return res.status(400).json({ 
           message: "Invalid mark scheme data format", 
           errors: validationResult.error.format() 
         });
       }
       
-      // Clear any existing mark scheme entries for this test to avoid duplicates
-      // Get existing entries
-      const existingEntries = await storage.getMarkScheme(testId);
-      
-      // For MemStorage, we don't have a delete method, so we'll just overwrite with new data
-      
-      // Add entries to storage
-      console.log("About to add entries to storage - raw data:", JSON.stringify(validationResult.data.slice(0, 3), null, 2));
-      
+      console.log("\n=== MARK SCHEME PROCESSING ===");
+      // Add entries to storage with proper handling of values
       const entries = await Promise.all(
         validationResult.data.map(entry => {
-          // Ensure expectedAnswer is a string and log details
-          // Fix for "undefined" string literal - if the value is literally "undefined", 
-          // it means we received that as an actual string value, not a JavaScript undefined
+          // Convert and normalize the answer value
           let expectedAnswer = String(entry.expectedAnswer || "").trim();
           
-          // If the literal string is "undefined", replace with empty string
-          if (expectedAnswer === "undefined") {
+          // Special case: handle "undefined" literal string value
+          if (expectedAnswer.toLowerCase() === "undefined") {
             console.warn(`Found literal "undefined" string for Q${entry.questionNumber}, replacing with empty string`);
             expectedAnswer = "";
           }
           
+          // Create a sanitized entry with proper values
           const sanitizedEntry = {
             questionNumber: entry.questionNumber,
             expectedAnswer: expectedAnswer,
             points: entry.points,
-            testId
+            testId: testId
           };
           
-          console.log(`Adding mark scheme entry: Q${entry.questionNumber}, Answer: "${expectedAnswer}", Points: ${entry.points}`);
-          console.log(`  expectedAnswer type: ${typeof expectedAnswer}`);
-          console.log(`  expectedAnswer empty?: ${expectedAnswer === ""}`);
+          console.log(`Processing entry Q${entry.questionNumber}: "${expectedAnswer}" (${typeof expectedAnswer}), Points: ${entry.points}`);
           
           return storage.addMarkSchemeEntry(sanitizedEntry);
         })
