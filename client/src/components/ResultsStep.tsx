@@ -253,9 +253,9 @@ export default function ResultsStep() {
                   detailedResults.map((result) => (
                     <TableRow key={`row-${result.questionNumber}`}>
                       <TableCell className="px-4 py-3 text-sm text-gray-900">{result.questionNumber}</TableCell>
-                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.studentAnswer}</TableCell>
-                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.expectedAnswer}</TableCell>
-                      <TableCell className="px-4 py-3 text-sm text-gray-900">{result.earnedPoints}/{result.points}</TableCell>
+                      <TableCell className={`px-4 py-3 text-sm ${result.correct ? 'text-green-600 font-medium' : 'text-gray-900'}`}>{result.studentAnswer}</TableCell>
+                      <TableCell className={`px-4 py-3 text-sm ${result.correct ? 'text-green-600 font-medium' : 'text-gray-900'}`}>{result.expectedAnswer}</TableCell>
+                      <TableCell className={`px-4 py-3 text-sm ${result.correct ? 'text-green-600 font-medium' : 'text-gray-900'}`}>{result.earnedPoints}/{result.points}</TableCell>
                       <TableCell className="px-4 py-3">
                         {result.correct ? (
                           <span className="material-icons text-success">check_circle</span>
