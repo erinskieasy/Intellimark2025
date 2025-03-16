@@ -16,7 +16,7 @@ import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
-  
+
   const { 
     testResult, 
     detailedResults, 
@@ -24,12 +24,12 @@ export default function ResultsStep() {
     resetTestGrader,
     markScheme
   } = useTestGrader();
-  
+
   // Handle back button
   const handleBack = useCallback(() => {
     setStep('process');
   }, [setStep]);
-  
+
   // Handle new test button
   const handleNewTest = useCallback(() => {
     // Confirm before starting a new test
@@ -37,23 +37,23 @@ export default function ResultsStep() {
       resetTestGrader();
     }
   }, [resetTestGrader]);
-  
+
   // Handle PDF export
   const handleExportPDF = useCallback(async () => {
     try {
       setExportingPdf(true);
-      
+
       // Create a new PDF document
       const doc = new jsPDF();
-      
+
       // Add title
       doc.setFontSize(18);
       doc.text('Test Results', 105, 15, { align: 'center' });
-      
+
       // Add summary
       doc.setFontSize(12);
       doc.text(`Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`, 105, 25, { align: 'center' });
-      
+
       // Add detailed results table
       const tableData = detailedResults.map(result => [
         result.questionNumber,
@@ -62,7 +62,7 @@ export default function ResultsStep() {
         `${result.earnedPoints}/${result.points}`,
         result.correct ? 'Correct' : 'Incorrect'
       ]);
-      
+
       (doc as any).autoTable({
         head: [['Q #', 'Student Answer', 'Expected Answer', 'Points', 'Status']],
         body: tableData,
@@ -70,7 +70,7 @@ export default function ResultsStep() {
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235] }
       });
-      
+
       // Save the PDF
       doc.save('test-results.pdf');
     } catch (error) {
@@ -79,7 +79,7 @@ export default function ResultsStep() {
       setExportingPdf(false);
     }
   }, [testResult, detailedResults]);
-  
+
   // Handle sharing results
   const handleShare = useCallback(async () => {
     try {
@@ -87,9 +87,9 @@ export default function ResultsStep() {
         alert('Web Share API is not supported in your browser.');
         return;
       }
-      
+
       const blob = await handleExportPDF();
-      
+
       await navigator.share({
         title: 'Test Results',
         text: `Score: ${testResult?.scorePercentage}% (${testResult?.pointsEarned}/${testResult?.totalPoints} points)`,
@@ -99,15 +99,15 @@ export default function ResultsStep() {
       console.error('Error sharing results:', error);
     }
   }, [testResult, handleExportPDF]);
-  
+
   if (!testResult) {
     return (
       <div className="bg-white rounded-lg shadow-md p-5">
         {/* Mark Scheme Preview in empty state - using fresh Excel data */}
-        <div className="mb-5">
+        <div className="mb-5 hidden">
           <MarkSchemePreview />
         </div>
-        
+
         <div className="text-center py-8">
           <span className="material-icons text-4xl text-yellow-500 mb-2">warning</span>
           <h3 className="text-base font-medium text-gray-800 mb-1">No Results Available</h3>
@@ -121,7 +121,7 @@ export default function ResultsStep() {
       </div>
     );
   }
-  
+
   return (
     <div className="bg-white rounded-lg shadow-md p-5">
       <div className="flex justify-between items-start mb-4">
@@ -135,12 +135,12 @@ export default function ResultsStep() {
           Share
         </Button>
       </div>
-      
+
       {/* Mark Scheme Preview - using fresh Excel data */}
-      <div className="mb-5">
+      <div className="mb-5 hidden">
         <MarkSchemePreview />
       </div>
-      
+
       {/* Score Summary */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
@@ -156,7 +156,7 @@ export default function ResultsStep() {
           </div>
         </div>
       </div>
-      
+
       {/* Detailed Results */}
       <div className="mb-5">
         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -195,7 +195,7 @@ export default function ResultsStep() {
           </div>
         </div>
       </div>
-      
+
       <div className="flex justify-between">
         <Button
           onClick={handleBack}

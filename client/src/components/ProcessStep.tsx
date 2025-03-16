@@ -15,16 +15,16 @@ export default function ProcessStep() {
     processingProgress,
     markScheme
   } = useTestGrader();
-  
+
   const { processImagesMutation } = useTestGraderActions();
-  
+
   // Auto-start processing when this step is loaded
   useEffect(() => {
     if (capturedPages.length > 0 && !processingPage && processingProgress === 0) {
       processImagesMutation.mutate();
     }
   }, [capturedPages.length, processingPage, processingProgress, processImagesMutation]);
-  
+
   // Handle back button
   const handleBack = useCallback(() => {
     if (processImagesMutation.isPending) {
@@ -34,28 +34,28 @@ export default function ProcessStep() {
     }
     setStep('capture');
   }, [setStep, processImagesMutation.isPending]);
-  
+
   // Handle next button
   const handleNext = useCallback(() => {
     setStep('results');
   }, [setStep]);
-  
+
   // Processing is complete when progress is 100 or all pages are processed
   const isProcessingComplete = processingProgress === 100 || 
     (processingPage === totalProcessingPages && totalProcessingPages > 0);
-  
+
   return (
     <div className="bg-white rounded-lg shadow-md p-5">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Process Answer Sheets</h2>
       <p className="text-sm text-gray-600 mb-5">
         The app will now process the images to extract student answers using AI.
       </p>
-      
-      {/* Mark Scheme Preview - using fresh Excel data */}
-      <div className="mb-5">
+
+      {/* Mark Scheme Preview - hidden */}
+      <div className="mb-5 hidden">
         <MarkSchemePreview />
       </div>
-      
+
       {/* Processing Status */}
       <div className="mb-6">
         <div className="flex flex-col items-center justify-center py-8">
@@ -89,7 +89,7 @@ export default function ProcessStep() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <div className="bg-gray-50 p-3 border-b border-gray-200">
                   <h3 className="text-sm font-medium text-gray-700">Extracted Answers</h3>
@@ -125,7 +125,7 @@ export default function ProcessStep() {
           )}
         </div>
       </div>
-      
+
       <div className="flex justify-between">
         <Button
           onClick={handleBack}
