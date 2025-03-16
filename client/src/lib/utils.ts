@@ -176,11 +176,25 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
           const expectedAnswer = row[columnMap.expectedAnswerCol];
           const points = row[columnMap.pointsCol] || 1; // Default to 1 point if not specified
           
+          console.log(`Row ${index} processing:`, {
+            questionNumber,
+            expectedAnswer,
+            expectedAnswerType: typeof expectedAnswer,
+            points
+          });
+          
+          // Handle undefined or empty expectedAnswer values
+          let normalizedAnswer = expectedAnswer;
+          if (expectedAnswer === undefined || expectedAnswer === null) {
+            console.warn(`Warning: Row ${index + 1} has undefined or null answer, using empty string`);
+            normalizedAnswer = "";
+          }
+          
           // Validate the extracted data
           try {
             return markSchemeRowSchema.parse({
               questionNumber: typeof questionNumber === 'number' ? questionNumber : parseInt(questionNumber),
-              expectedAnswer: String(expectedAnswer).trim(),
+              expectedAnswer: String(normalizedAnswer).trim(), // Convert to string even if undefined
               points: typeof points === 'number' ? points : parseInt(points)
             });
           } catch (error) {

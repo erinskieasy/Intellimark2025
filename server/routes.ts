@@ -80,7 +80,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entries = await Promise.all(
         validationResult.data.map(entry => {
           // Ensure expectedAnswer is a string and log details
-          const expectedAnswer = String(entry.expectedAnswer || "").trim();
+          // Fix for "undefined" string literal - if the value is literally "undefined", 
+          // it means we received that as an actual string value, not a JavaScript undefined
+          let expectedAnswer = String(entry.expectedAnswer || "").trim();
+          
+          // If the literal string is "undefined", replace with empty string
+          if (expectedAnswer === "undefined") {
+            console.warn(`Found literal "undefined" string for Q${entry.questionNumber}, replacing with empty string`);
+            expectedAnswer = "";
+          }
+          
           const sanitizedEntry = {
             questionNumber: entry.questionNumber,
             expectedAnswer: expectedAnswer,
