@@ -10,8 +10,8 @@ import { TestGraderProvider } from "@/context/TestGraderContext";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={TestPage} />
-      <Route path="/home" component={Home} />
+      <Route path="/" component={Home} />
+      <Route path="/test" component={TestPage} />
       <Route component={NotFound} />
     </Switch>
   );

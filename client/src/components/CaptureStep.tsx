@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Webcam } from '@/components/ui/webcam';
+import { SimpleWebcam } from '@/components/ui/simple-webcam';
 import { useTestGrader } from '@/context/TestGraderContext';
 import { useTestGraderActions } from '@/hooks/use-test-grader';
 import { useToast } from '@/hooks/use-toast';
@@ -155,10 +155,8 @@ export default function CaptureStep() {
       {/* Camera Interface */}
       {isCapturing && (
         <div className="mb-6 rounded-lg overflow-hidden border border-gray-200">
-          <Webcam 
+          <SimpleWebcam 
             onCapture={handleCapture}
-            // Don't set a fixed aspect ratio to improve compatibility
-            withFacingToggle={true}
           />
         </div>
       )}
