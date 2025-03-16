@@ -152,6 +152,11 @@ export default function ResultsStep() {
     try {
       // Create a new test with same parameters as current test
       if (currentTest) {
+        // Get existing mark scheme
+        const markSchemeRes = await fetch(`/api/mark-scheme/${currentTest.id}`);
+        const markScheme = await markSchemeRes.json();
+        
+        // Create new test
         const response = await fetch('/api/tests', {
           method: 'POST',
           headers: {
@@ -169,6 +174,19 @@ export default function ResultsStep() {
         }
 
         const newTest = await response.json();
+        
+        // Copy mark scheme to new test
+        if (markScheme && markScheme.length > 0) {
+          const formData = new FormData();
+          formData.append('testId', newTest.id.toString());
+          formData.append('markSchemeData', JSON.stringify(markScheme));
+          
+          await fetch('/api/mark-scheme', {
+            method: 'POST',
+            body: formData
+          });
+        }
+        
         setCurrentTest(newTest);
       }
 
