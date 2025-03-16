@@ -40,6 +40,8 @@ export async function extractAnswersFromImage(
 
     const response = await openai.chat.completions.create({
       model,
+      temperature: settings.temperature ?? 0.7,
+      top_p: settings.topP ?? 1,
       messages: [
         {
           role: "system",

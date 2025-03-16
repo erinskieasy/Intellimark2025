@@ -45,6 +45,8 @@ export const settings = pgTable("settings", {
   answerRecognitionInstructions: text("answer_recognition_instructions").default(""),
   enhancedRecognition: boolean("enhanced_recognition").default(true),
   confidenceThreshold: integer("confidence_threshold").default(80),
+  temperature: integer("temperature").default(0.7), // Added temperature
+  topP: integer("top_p").default(1), // Added top_p
 });
 
 // Create insert schemas using drizzle-zod

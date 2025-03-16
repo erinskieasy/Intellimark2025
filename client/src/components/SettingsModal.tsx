@@ -30,6 +30,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [answerRecognitionInstructions, setAnswerRecognitionInstructions] = useState('');
   const [enhancedRecognition, setEnhancedRecognition] = useState(true);
   const [confidenceThreshold, setConfidenceThreshold] = useState(80);
+  const [temperature, setTemperature] = useState(0.7);
+  const [topP, setTopP] = useState(1);
   
   // Query to get current settings
   const { data: settings, isLoading } = useQuery({
@@ -67,7 +69,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     updateSettingsMutation.mutate({
       answerRecognitionInstructions,
       enhancedRecognition,
-      confidenceThreshold
+      confidenceThreshold,
+      temperature,
+      topP
     });
   };
   
@@ -107,6 +111,34 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           
           <div className="mb-5">
             <h3 className="text-sm font-medium text-gray-700 mb-2">AI Model Settings</h3>
+            
+            <div className="space-y-4 mt-4">
+              <div>
+                <Label htmlFor="temperature">Temperature ({temperature})</Label>
+                <Slider
+                  id="temperature"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={[temperature]}
+                  onValueChange={(value) => setTemperature(value[0])}
+                />
+                <p className="text-xs text-gray-500 mt-1">Controls randomness: 0 is focused, 2 is more creative</p>
+              </div>
+
+              <div>
+                <Label htmlFor="top-p">Top P ({topP})</Label>
+                <Slider
+                  id="top-p"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  value={[topP]}
+                  onValueChange={(value) => setTopP(value[0])}
+                />
+                <p className="text-xs text-gray-500 mt-1">Controls diversity: 0 is focused, 1 allows more variety</p>
+              </div>
+            </div>
             <div className="flex items-center justify-between mb-3">
               <Label htmlFor="enhanced-recognition" className="text-sm text-gray-600">
                 Enhanced Recognition
