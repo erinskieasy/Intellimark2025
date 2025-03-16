@@ -75,20 +75,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For MemStorage, we don't have a delete method, so we'll just overwrite with new data
       
       // Add entries to storage
+      console.log("About to add entries to storage - raw data:", JSON.stringify(validationResult.data.slice(0, 3), null, 2));
+      
       const entries = await Promise.all(
         validationResult.data.map(entry => {
-          // Ensure expectedAnswer is a string
-          const expectedAnswer = String(entry.expectedAnswer).trim();
-          console.log(`Adding mark scheme entry: Q${entry.questionNumber}, Answer: ${expectedAnswer}, Points: ${entry.points}`);
-          
-          return storage.addMarkSchemeEntry({
+          // Ensure expectedAnswer is a string and log details
+          const expectedAnswer = String(entry.expectedAnswer || "").trim();
+          const sanitizedEntry = {
             questionNumber: entry.questionNumber,
             expectedAnswer: expectedAnswer,
             points: entry.points,
             testId
-          });
+          };
+          
+          console.log(`Adding mark scheme entry: Q${entry.questionNumber}, Answer: "${expectedAnswer}", Points: ${entry.points}`);
+          console.log(`  expectedAnswer type: ${typeof expectedAnswer}`);
+          console.log(`  expectedAnswer empty?: ${expectedAnswer === ""}`);
+          
+          return storage.addMarkSchemeEntry(sanitizedEntry);
         })
       );
+      
+      // Log the first few entries that were actually stored
+      console.log("First few entries actually stored:");
+      entries.slice(0, 3).forEach((entry, idx) => {
+        console.log(`Entry ${idx}:`, JSON.stringify(entry, null, 2));
+        console.log(`  expectedAnswer type: ${typeof entry.expectedAnswer}`);
+        console.log(`  expectedAnswer value: "${entry.expectedAnswer}"`);
+      });
       
       // Update test with total questions and points
       const test = await storage.getTest(testId);

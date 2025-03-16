@@ -87,7 +87,7 @@ export class MemStorage implements IStorage {
     // Ensure expectedAnswer is a string
     const sanitizedEntry = {
       ...entry,
-      expectedAnswer: String(entry.expectedAnswer).trim(),
+      expectedAnswer: String(entry.expectedAnswer || "").trim(),
     };
     
     const newEntry: MarkSchemeEntry = { ...sanitizedEntry, id };
@@ -209,13 +209,14 @@ export class MemStorage implements IStorage {
     
     const detailedResults = markScheme.map(entry => {
       const studentAnswer = result.studentAnswers[entry.questionNumber.toString()] || '';
-      const correct = studentAnswer.toUpperCase() === entry.expectedAnswer.toUpperCase();
+      const expectedAnswer = String(entry.expectedAnswer || "").trim();
+      const correct = studentAnswer.toUpperCase() === expectedAnswer.toUpperCase();
       const earnedPoints = correct ? entry.points : 0;
       
       const resultItem = {
         questionNumber: entry.questionNumber,
         studentAnswer,
-        expectedAnswer: entry.expectedAnswer,
+        expectedAnswer,
         points: entry.points,
         earnedPoints,
         correct
