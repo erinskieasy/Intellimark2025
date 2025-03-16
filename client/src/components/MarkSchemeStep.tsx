@@ -40,9 +40,24 @@ export default function MarkSchemeStep() {
   const [file, setFile] = useState<File | null>(null);
   const [createTestDialogOpen, setCreateTestDialogOpen] = useState(false);
   const [testName, setTestName] = useState('');
+  const [columnMappingDialogOpen, setColumnMappingDialogOpen] = useState(false);
+  const [columnMapping, setColumnMapping] = useState<ExcelColumnMap | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   
   const { toast } = useToast();
-  const { markScheme, currentTest, setStep } = useTestGrader();
+  const { 
+    markScheme, 
+    currentTest, 
+    setStep,
+    excelFile,
+    excelPreviewData,
+    excelColumns,
+    setExcelFile,
+    setExcelPreviewData,
+    setExcelColumns,
+    setColumnMap,
+    setMarkScheme
+  } = useTestGrader();
   const { 
     uploadMarkSchemeMutation, 
     createTestMutation, 
@@ -52,15 +67,38 @@ export default function MarkSchemeStep() {
   
   // If we have testMarkScheme from the server, use it
   useEffect(() => {
-    if (testMarkScheme && testMarkScheme.length > 0) {
+    if (testMarkScheme && Array.isArray(testMarkScheme) && testMarkScheme.length > 0) {
       // Mark scheme is loaded from the server
     }
   }, [testMarkScheme]);
   
-  // Handle file change
-  const handleFileChange = useCallback((file: File | null) => {
-    setFile(file);
-  }, []);
+  // Handle file change and parse Excel for preview
+  const handleFileChange = useCallback(async (uploadedFile: File | null) => {
+    setFile(uploadedFile);
+    setExcelFile(uploadedFile);
+    
+    if (uploadedFile) {
+      try {
+        setIsPreviewLoading(true);
+        const { data, columns } = await parseExcelForPreview(uploadedFile);
+        setExcelPreviewData(data);
+        setExcelColumns(columns);
+        setIsPreviewLoading(false);
+        
+        // Open column mapping dialog if we have columns
+        if (columns.length > 0) {
+          setColumnMappingDialogOpen(true);
+        }
+      } catch (error) {
+        setIsPreviewLoading(false);
+        toast({
+          title: 'Excel Preview Error',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive'
+        });
+      }
+    }
+  }, [setExcelFile, setExcelPreviewData, setExcelColumns, toast]);
   
   // Handle file error
   const handleFileError = useCallback((error: string) => {
@@ -70,6 +108,70 @@ export default function MarkSchemeStep() {
       variant: 'destructive'
     });
   }, [toast]);
+  
+  // Handle column mapping confirmation
+  // Handle column selection
+  const handleColumnSelect = useCallback((field: keyof ExcelColumnMap, value: string) => {
+    setColumnMapping((prev) => ({
+      ...(prev || { questionNumberCol: '', expectedAnswerCol: '', pointsCol: '' }),
+      [field]: value
+    }));
+  }, []);
+  
+  // Handle column mapping confirmation
+  const handleColumnMappingConfirm = useCallback(async () => {
+    if (!columnMapping || !file) {
+      toast({
+        title: 'Column Mapping Required',
+        description: 'Please select columns for all fields.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // Check if all required columns are selected
+    if (!columnMapping.questionNumberCol || !columnMapping.expectedAnswerCol || !columnMapping.pointsCol) {
+      toast({
+        title: 'Column Mapping Incomplete',
+        description: 'Please select columns for all required fields.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    try {
+      // Save the column mapping
+      setColumnMap(columnMapping);
+      
+      if (!currentTest) {
+        setColumnMappingDialogOpen(false);
+        setCreateTestDialogOpen(true);
+        return;
+      }
+      
+      // Parse Excel with the column mapping
+      const parsedData = await parseExcelWithColumnMap(file, columnMapping);
+      
+      // Send the parsed data to the server
+      // Note: We need to update the API and use-test-grader.ts to accept parsed mark scheme
+      // For now, we'll directly set the mark scheme in the context
+      // uploadMarkSchemeMutation.mutate({
+      //   file,
+      //   testId: currentTest.id!
+      // });
+      
+      // Directly set the mark scheme in the context
+      setMarkScheme(parsedData);
+      
+      setColumnMappingDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: 'Parsing Error',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive'
+      });
+    }
+  }, [columnMapping, file, currentTest, setColumnMap, setMarkScheme, toast]);
   
   // Handle create test dialog
   const handleCreateTest = useCallback(() => {
@@ -244,6 +346,127 @@ export default function MarkSchemeStep() {
             </Button>
             <Button onClick={handleCreateTest} disabled={createTestMutation.isPending}>
               {createTestMutation.isPending ? 'Creating...' : 'Create & Continue'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Column Mapping Dialog */}
+      <Dialog open={columnMappingDialogOpen} onOpenChange={setColumnMappingDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Map Excel Columns</DialogTitle>
+            <DialogDescription>
+              Please select which columns in your Excel file correspond to the question number, expected answer, and points.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-6">
+            {/* Preview table */}
+            {isPreviewLoading ? (
+              <div className="flex items-center justify-center p-6">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className="ml-2">Loading preview...</span>
+              </div>
+            ) : excelPreviewData.length > 0 ? (
+              <div className="border rounded-md overflow-auto max-h-64">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {excelColumns.map((column) => (
+                        <TableHead key={column} className="px-4 py-2 text-xs font-medium">
+                          {column}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {excelPreviewData.slice(0, 5).map((row, rowIndex) => (
+                      <TableRow key={rowIndex}>
+                        {excelColumns.map((column) => (
+                          <TableCell key={`${rowIndex}-${column}`} className="px-4 py-2 text-xs">
+                            {row[column] !== undefined ? String(row[column]) : ''}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">No preview data available</div>
+            )}
+            
+            {/* Column mapping fields */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="question-column">Question Number Column</Label>
+                <Select 
+                  onValueChange={(value) => handleColumnSelect('questionNumberCol', value)}
+                  value={columnMapping?.questionNumberCol || ''}
+                >
+                  <SelectTrigger id="question-column">
+                    <SelectValue placeholder="Select column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Select column</SelectItem>
+                    {excelColumns.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="answer-column">Expected Answer Column</Label>
+                <Select 
+                  onValueChange={(value) => handleColumnSelect('expectedAnswerCol', value)}
+                  value={columnMapping?.expectedAnswerCol || ''}
+                >
+                  <SelectTrigger id="answer-column">
+                    <SelectValue placeholder="Select column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Select column</SelectItem>
+                    {excelColumns.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="points-column">Points Column</Label>
+                <Select 
+                  onValueChange={(value) => handleColumnSelect('pointsCol', value)}
+                  value={columnMapping?.pointsCol || ''}
+                >
+                  <SelectTrigger id="points-column">
+                    <SelectValue placeholder="Select column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Select column</SelectItem>
+                    {excelColumns.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColumnMappingDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleColumnMappingConfirm}>
+              Confirm Mapping
             </Button>
           </DialogFooter>
         </DialogContent>
