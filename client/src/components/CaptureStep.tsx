@@ -13,8 +13,8 @@ export default function CaptureStep() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { capturedPages, currentTest, setStep, removeCapturedPage, markScheme } = useTestGrader();
-  const { captureImageMutation } = useTestGraderActions();
-  
+  const { captureImageMutation, clearCapturedPages } = useTestGraderActions();
+
   // Handle image capture
   const handleCapture = useCallback((imageData: string) => {
     if (!currentTest?.id) {
@@ -25,13 +25,13 @@ export default function CaptureStep() {
       });
       return;
     }
-    
+
     // Show temporary toast for visual feedback
     toast({
       title: 'Processing image...',
       description: 'Please wait while we process your image.',
     });
-    
+
     captureImageMutation.mutate({
       imageData,
       pageNumber: capturedPages.length + 1,
@@ -49,17 +49,17 @@ export default function CaptureStep() {
       }
     });
   }, [captureImageMutation, capturedPages.length, currentTest, toast]);
-  
+
   // Handle file upload from gallery
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !currentTest?.id) return;
-    
+
     toast({
       title: 'Loading image...',
       description: 'Please wait while we load your image.',
     });
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const imageData = e.target?.result as string;
@@ -69,7 +69,7 @@ export default function CaptureStep() {
         testId: currentTest.id!
       });
     };
-    
+
     reader.onerror = () => {
       toast({
         title: 'Error loading image',
@@ -77,34 +77,34 @@ export default function CaptureStep() {
         variant: 'destructive'
       });
     };
-    
+
     reader.readAsDataURL(file);
-    
+
     // Reset the input value so the same file can be selected again
     event.target.value = '';
   }, [captureImageMutation, capturedPages.length, currentTest, toast]);
-  
+
   // Handle delete image
   const handleDeleteImage = useCallback((pageNumber: number) => {
     const page = capturedPages.find(p => p.pageNumber === pageNumber);
     if (!page) return;
-    
+
     // Confirm before deleting
     if (confirm(`Are you sure you want to delete page ${pageNumber}?`)) {
       removeCapturedPage(pageNumber);
-      
+
       toast({
         title: 'Page deleted',
         description: `Page ${pageNumber} has been removed.`,
       });
     }
   }, [capturedPages, removeCapturedPage, toast]);
-  
+
   // Handle back button
   const handleBack = useCallback(() => {
     setStep('mark-scheme');
   }, [setStep]);
-  
+
   // Handle next button
   const handleNext = useCallback(() => {
     if (capturedPages.length === 0) {
@@ -115,27 +115,27 @@ export default function CaptureStep() {
       });
       return;
     }
-    
+
     setStep('process');
   }, [capturedPages.length, setStep, toast]);
-  
+
   // Toggle camera visibility
   const toggleCamera = useCallback(() => {
     setIsCapturing(prev => !prev);
   }, []);
-  
+
   return (
     <div className="bg-white rounded-lg shadow-md p-5">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Capture Answer Sheets</h2>
       <p className="text-sm text-gray-600 mb-5">
         Use your camera to capture each page of the student's answer sheet. Make sure the answers are clearly visible.
       </p>
-      
+
       {/* Mark Scheme Preview - hidden */}
       <div className="mb-5 hidden">
         <MarkSchemePreview />
       </div>
-      
+
       {/* Camera visibility toggle */}
       <div className="flex justify-end mb-3">
         <Button
@@ -157,7 +157,7 @@ export default function CaptureStep() {
           )}
         </Button>
       </div>
-      
+
       {/* Camera Interface */}
       {isCapturing && (
         <div className="mb-6 rounded-lg overflow-hidden border border-gray-200">
@@ -166,14 +166,14 @@ export default function CaptureStep() {
           />
         </div>
       )}
-      
+
       {/* Captured Images */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-gray-700">Captured Pages</h3>
           <span className="text-xs text-gray-500">{capturedPages.length} pages</span>
         </div>
-        
+
         {capturedPages.length > 0 ? (
           <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
             {capturedPages.map((page) => (
@@ -202,7 +202,7 @@ export default function CaptureStep() {
             <p className="text-sm text-gray-500">No pages captured yet. Use the camera above or upload from gallery.</p>
           </div>
         )}
-        
+
         <div className="flex items-center justify-center mt-3">
           <input
             type="file"
@@ -245,7 +245,7 @@ export default function CaptureStep() {
           )}
         </div>
       </div>
-      
+
       <div className="flex justify-between">
         <Button
           onClick={handleBack}
