@@ -4,6 +4,7 @@ import { useTestGrader } from '@/context/TestGraderContext';
 import { useTestGraderActions } from '@/hooks/use-test-grader';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function ProcessStep() {
   const { 
@@ -11,7 +12,8 @@ export default function ProcessStep() {
     setStep, 
     processingPage, 
     totalProcessingPages, 
-    processingProgress 
+    processingProgress,
+    markScheme
   } = useTestGrader();
   
   const { processImagesMutation } = useTestGraderActions();
@@ -48,6 +50,11 @@ export default function ProcessStep() {
       <p className="text-sm text-gray-600 mb-5">
         The app will now process the images to extract student answers using AI.
       </p>
+      
+      {/* Mark Scheme Preview */}
+      <div className="mb-5">
+        <MarkSchemePreview markScheme={markScheme} />
+      </div>
       
       {/* Processing Status */}
       <div className="mb-6">

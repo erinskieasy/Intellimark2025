@@ -6,12 +6,13 @@ import { useTestGraderActions } from '@/hooks/use-test-grader';
 import { useToast } from '@/hooks/use-toast';
 import { dataURLtoBlob } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MarkSchemePreview } from './MarkSchemePreview';
 
 export default function CaptureStep() {
   const [isCapturing, setIsCapturing] = useState(true);
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { capturedPages, currentTest, setStep, removeCapturedPage } = useTestGrader();
+  const { capturedPages, currentTest, setStep, removeCapturedPage, markScheme } = useTestGrader();
   const { captureImageMutation } = useTestGraderActions();
   
   // Handle image capture
@@ -129,6 +130,11 @@ export default function CaptureStep() {
       <p className="text-sm text-gray-600 mb-5">
         Use your camera to capture each page of the student's answer sheet. Make sure the answers are clearly visible.
       </p>
+      
+      {/* Mark Scheme Preview */}
+      <div className="mb-5">
+        <MarkSchemePreview markScheme={markScheme} />
+      </div>
       
       {/* Camera visibility toggle */}
       <div className="flex justify-end mb-3">
