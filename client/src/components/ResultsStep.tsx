@@ -21,6 +21,18 @@ export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const { toast } = useToast();
 
+  const { 
+    testResult, 
+    detailedResults, 
+    setStep, 
+    resetTestGrader,
+    markScheme,
+    clearCapturedPages,
+    setTestResult,
+    setDetailedResults,
+    currentTest
+  } = useTestGrader();
+
   // Fetch fresh results when component mounts
   useEffect(() => {
     const fetchFreshResults = async () => {
@@ -38,18 +50,7 @@ export default function ResultsStep() {
     };
 
     fetchFreshResults();
-  }, [currentTest?.id]);
-
-  const { 
-    testResult, 
-    detailedResults, 
-    setStep, 
-    resetTestGrader,
-    markScheme,
-    clearCapturedPages,
-    setTestResult,
-    setDetailedResults
-  } = useTestGrader();
+  }, [currentTest, setDetailedResults]);
 
   // Handle back button
   const handleBack = useCallback(() => {
