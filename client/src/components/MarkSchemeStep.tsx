@@ -114,6 +114,9 @@ export default function MarkSchemeStep() {
   
   // Handle column selection
   const handleColumnSelect = useCallback((field: keyof ExcelColumnMap, value: string) => {
+    // Skip the "_none" placeholder value
+    if (value === "_none") return;
+    
     setColumnMapping((prev) => ({
       ...(prev || { questionNumberCol: '', expectedAnswerCol: '', pointsCol: '' }),
       [field]: value
@@ -405,13 +408,13 @@ export default function MarkSchemeStep() {
                 <Label htmlFor="question-column">Question Number Column</Label>
                 <Select 
                   onValueChange={(value) => handleColumnSelect('questionNumberCol', value)}
-                  value={columnMapping?.questionNumberCol || ''}
+                  value={columnMapping?.questionNumberCol || '_none'}
                 >
                   <SelectTrigger id="question-column">
                     <SelectValue placeholder="Select column" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Select column</SelectItem>
+                    <SelectItem value="_none">Select column</SelectItem>
                     {excelColumns.map((column) => (
                       <SelectItem key={column} value={column}>
                         {column}
@@ -425,13 +428,13 @@ export default function MarkSchemeStep() {
                 <Label htmlFor="answer-column">Expected Answer Column</Label>
                 <Select 
                   onValueChange={(value) => handleColumnSelect('expectedAnswerCol', value)}
-                  value={columnMapping?.expectedAnswerCol || ''}
+                  value={columnMapping?.expectedAnswerCol || '_none'}
                 >
                   <SelectTrigger id="answer-column">
                     <SelectValue placeholder="Select column" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Select column</SelectItem>
+                    <SelectItem value="_none">Select column</SelectItem>
                     {excelColumns.map((column) => (
                       <SelectItem key={column} value={column}>
                         {column}
@@ -445,13 +448,13 @@ export default function MarkSchemeStep() {
                 <Label htmlFor="points-column">Points Column</Label>
                 <Select 
                   onValueChange={(value) => handleColumnSelect('pointsCol', value)}
-                  value={columnMapping?.pointsCol || ''}
+                  value={columnMapping?.pointsCol || '_none'}
                 >
                   <SelectTrigger id="points-column">
                     <SelectValue placeholder="Select column" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Select column</SelectItem>
+                    <SelectItem value="_none">Select column</SelectItem>
                     {excelColumns.map((column) => (
                       <SelectItem key={column} value={column}>
                         {column}
