@@ -147,32 +147,53 @@ export default function ResultsStep() {
   }, [testResult, handleExportPDF]);
   
   // Handle next paper button
-  const handleNextPaper = useCallback(() => {
-    // Clear captured pages and reset processing state
-    clearCapturedPages();
-    
-    // Force reset of results state
-    setTestResult(null);
-    
-    // Create a completely new empty array for detailed results
-    // This ensures React detects the change and re-renders the component
-    setDetailedResults([]);
-    
-    // Log for debug
-    console.log('Next Paper clicked: Detailed results reset to []');
-    
-    // Add a small delay before navigating to ensure state is updated
-    setTimeout(() => {
-      // Show success message
+  const handleNextPaper = useCallback(async () => {
+    try {
+      // Create a new test with same parameters as current test
+      if (currentTest) {
+        const response = await fetch('/api/tests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: currentTest.name,
+            totalQuestions: currentTest.totalQuestions,
+            totalPoints: currentTest.totalPoints
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create new test');
+        }
+        
+        const newTest = await response.json();
+        setCurrentTest(newTest);
+      }
+
+      // Clear captured pages and reset processing state
+      clearCapturedPages();
+      
+      // Force reset of results state
+      setTestResult(null);
+      setDetailedResults([]);
+      
       toast({
         title: 'Ready for next paper',
-        description: 'Previous images and results have been cleared.'
+        description: 'New test created and previous results cleared.'
       });
       
       // Navigate to capture page
       setStep('capture');
-    }, 50);
-  }, [clearCapturedPages, setTestResult, setDetailedResults, setStep, toast]);
+    } catch (error) {
+      console.error('Error creating new test:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to setup next paper. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  }, [currentTest, clearCapturedPages, setCurrentTest, setTestResult, setDetailedResults, setStep, toast]);
 
   if (!testResult) {
     return (
