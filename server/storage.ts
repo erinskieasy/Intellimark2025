@@ -99,7 +99,9 @@ export class MemStorage implements IStorage {
   }
   
   async addMarkSchemeEntries(entries: InsertMarkSchemeEntry[]): Promise<MarkSchemeEntry[]> {
-    return Promise.all(entries.map(entry => this.addMarkSchemeEntry(entry)));
+    const results = await Promise.all(entries.map(entry => this.addMarkSchemeEntry(entry)));
+    console.log(`Added ${results.length} mark scheme entries`);
+    return results;
   }
   
   // Test operations
@@ -107,6 +109,7 @@ export class MemStorage implements IStorage {
     const id = this.currentTestId++;
     const newTest: Test = { ...test, id };
     this.tests.set(id, newTest);
+    console.log(`Created new test: ${newTest.name}, ID: ${newTest.id}`);
     return newTest;
   }
   
@@ -128,6 +131,7 @@ export class MemStorage implements IStorage {
       extractedAnswers: {} 
     };
     this.pages.set(id, newPage);
+    console.log(`Added page ${newPage.pageNumber} for test ${newPage.testId}`);
     return newPage;
   }
   
@@ -166,6 +170,10 @@ export class MemStorage implements IStorage {
     };
     
     this.pages.set(id, updatedPage);
+    console.log(`Updated page ${id} processed status to ${processed}`);
+    if (extractedAnswers) {
+      console.log(`Extracted answers:`, JSON.stringify(extractedAnswers, null, 2));
+    }
     return updatedPage;
   }
   
@@ -174,28 +182,37 @@ export class MemStorage implements IStorage {
     const id = this.currentResultId++;
     const newResult: Result = { ...result, id };
     this.results.set(id, newResult);
+    console.log("Added result:", JSON.stringify(newResult, null, 2));
     return newResult;
   }
   
   async getResult(testId: number): Promise<Result | undefined> {
-    return Array.from(this.results.values()).find(result => result.testId === testId);
+    const result = Array.from(this.results.values()).find(result => result.testId === testId);
+    console.log(`Retrieved result for test ${testId}:`, result ? JSON.stringify(result, null, 2) : "No result found");
+    return result;
   }
   
   async getDetailedResults(testId: number): Promise<ResultItem[]> {
     const result = await this.getResult(testId);
     if (!result) {
+      console.log(`No result found for test ${testId}`);
       return [];
     }
     
     const markScheme = await this.getMarkScheme(testId);
-    console.log('Mark Scheme retrieved:', markScheme);
+    console.log('Mark Scheme for detailed results:', JSON.stringify(markScheme, null, 2));
     
-    return markScheme.map(entry => {
+    if (markScheme.length === 0) {
+      console.log(`No mark scheme found for test ${testId}`);
+      return [];
+    }
+    
+    const detailedResults = markScheme.map(entry => {
       const studentAnswer = result.studentAnswers[entry.questionNumber.toString()] || '';
       const correct = studentAnswer.toUpperCase() === entry.expectedAnswer.toUpperCase();
       const earnedPoints = correct ? entry.points : 0;
       
-      return {
+      const resultItem = {
         questionNumber: entry.questionNumber,
         studentAnswer,
         expectedAnswer: entry.expectedAnswer,
@@ -203,7 +220,13 @@ export class MemStorage implements IStorage {
         earnedPoints,
         correct
       };
+      
+      console.log(`Result item for question ${entry.questionNumber}:`, JSON.stringify(resultItem, null, 2));
+      
+      return resultItem;
     });
+    
+    return detailedResults;
   }
   
   // Settings operations
