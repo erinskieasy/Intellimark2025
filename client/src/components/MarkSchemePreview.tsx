@@ -1,27 +1,94 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { MarkSchemeEntry } from '@/types';
+import { useTestGrader } from '@/context/TestGraderContext';
+import { parseExcelWithColumnMap } from '@/lib/utils';
 
 interface MarkSchemePreviewProps {
-  markScheme: MarkSchemeEntry[];
+  markScheme?: MarkSchemeEntry[];
   className?: string;
   collapsed?: boolean;
+  forceDirect?: boolean; // Force using passed markScheme directly
 }
 
-export function MarkSchemePreview({ markScheme, className = '', collapsed = false }: MarkSchemePreviewProps) {
-  // Early return if no mark scheme
-  if (!markScheme || markScheme.length === 0) {
+export function MarkSchemePreview({ 
+  markScheme: providedMarkScheme, 
+  className = '', 
+  collapsed = false,
+  forceDirect = false
+}: MarkSchemePreviewProps) {
+  const { excelFile, columnMap, markScheme: contextMarkScheme } = useTestGrader();
+  const [parsedMarkScheme, setParsedMarkScheme] = useState<MarkSchemeEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Determine which mark scheme data to use
+  const markScheme = forceDirect && providedMarkScheme 
+    ? providedMarkScheme 
+    : parsedMarkScheme.length > 0 
+      ? parsedMarkScheme 
+      : contextMarkScheme;
+
+  // Parse Excel file on demand when component mounts or when dependencies change
+  useEffect(() => {
+    async function parseExcel() {
+      // Skip if we're using provided data directly or already have parsed data
+      if ((forceDirect && providedMarkScheme) || !excelFile || !columnMap) {
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        const freshParsedData = await parseExcelWithColumnMap(excelFile, columnMap) as MarkSchemeEntry[];
+        setParsedMarkScheme(freshParsedData);
+        console.log("MarkSchemePreview: Freshly parsed Excel data", freshParsedData.length, "items");
+      } catch (err) {
+        console.error("Failed to parse Excel file:", err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    parseExcel();
+  }, [excelFile, columnMap, forceDirect, providedMarkScheme]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`border border-gray-200 bg-gray-50 rounded-lg p-3 flex items-center ${className}`}>
+        <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary mr-2"></div>
+        <p className="text-xs">Loading mark scheme...</p>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
     return (
       <div className={`border border-red-200 bg-red-50 rounded-lg p-3 ${className}`}>
         <div className="flex items-center text-red-600">
-          <span className="material-icons text-red-500 mr-2 text-sm">warning</span>
-          <p className="text-xs">No mark scheme data available!</p>
+          <span className="material-icons text-red-500 mr-2 text-sm">error</span>
+          <p className="text-xs">Error loading mark scheme: {error}</p>
         </div>
       </div>
     );
   }
 
-  // Get test info from first entry
+  // Early return if no mark scheme
+  if (!markScheme || markScheme.length === 0) {
+    return (
+      <div className={`border border-gray-200 bg-gray-50 rounded-lg p-3 ${className}`}>
+        <div className="flex items-center text-gray-600">
+          <span className="material-icons text-gray-500 mr-2 text-sm">info</span>
+          <p className="text-xs">No mark scheme data available yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get test info from first entry or context
   const testId = markScheme[0]?.testId;
   const totalEntries = markScheme.length;
   const totalPoints = markScheme.reduce((sum, entry) => sum + entry.points, 0);
@@ -64,9 +131,11 @@ export function MarkSchemePreview({ markScheme, className = '', collapsed = fals
           <h3 className="text-sm font-medium text-gray-700">Mark Scheme Preview</h3>
         </div>
         <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="text-xs">
-            Test ID: {testId}
-          </Badge>
+          {testId && (
+            <Badge variant="outline" className="text-xs">
+              Test ID: {testId}
+            </Badge>
+          )}
           <Badge variant="outline" className="text-xs">
             {totalEntries} Questions
           </Badge>
@@ -79,6 +148,9 @@ export function MarkSchemePreview({ markScheme, className = '', collapsed = fals
       <div className="p-3">
         <div className="text-xs text-gray-500 mb-2">
           Completeness: {completenessPercentage}%
+          {!forceDirect && excelFile && (
+            <span className="ml-2 text-green-600">• Fresh data from Excel</span>
+          )}
         </div>
         
         <div className="max-h-40 overflow-y-auto">

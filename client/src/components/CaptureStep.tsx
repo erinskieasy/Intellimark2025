@@ -131,9 +131,9 @@ export default function CaptureStep() {
         Use your camera to capture each page of the student's answer sheet. Make sure the answers are clearly visible.
       </p>
       
-      {/* Mark Scheme Preview */}
+      {/* Mark Scheme Preview - using fresh Excel data */}
       <div className="mb-5">
-        <MarkSchemePreview markScheme={markScheme} />
+        <MarkSchemePreview />
       </div>
       
       {/* Camera visibility toggle */}
