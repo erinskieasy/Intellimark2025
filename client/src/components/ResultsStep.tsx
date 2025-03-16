@@ -22,7 +22,8 @@ export default function ResultsStep() {
     detailedResults, 
     setStep, 
     resetTestGrader,
-    markScheme
+    markScheme,
+    clearCapturedPages
   } = useTestGrader();
 
   // Handle back button
@@ -208,7 +209,7 @@ export default function ResultsStep() {
         <div className="flex space-x-3">
           <Button
             onClick={() => {
-              clearCapturedPages();
+              clearCapturedPages(); // This already exists and clears the captured pages
               setStep('capture');
             }}
             variant="secondary"
