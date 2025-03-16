@@ -4,7 +4,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Test, Page, Result, MarkSchemeEntry } from '@/types';
-import { parseExcelMarkScheme, parseExcelWithColumnMap } from '@/lib/utils';
+import { parseExcelMarkScheme } from '@/lib/utils';
 
 export function useTestGraderActions() {
   const queryClient = useQueryClient();
@@ -21,9 +21,7 @@ export function useTestGraderActions() {
     finishProcessing,
     setStep,
     capturedPages,
-    currentTest,
-    excelFile,
-    columnMap
+    currentTest
   } = useTestGrader();
   
   const [excelParseError, setExcelParseError] = useState<string | null>(null);
@@ -172,32 +170,11 @@ export function useTestGraderActions() {
         updateProcessingStatus(i + 1, ((i + 1) / capturedPages.length) * 100);
       }
       
-      // Parse the Excel file directly for the freshest mark scheme data
-      let markScheme: MarkSchemeEntry[] = [];
-      
-      // Get the mark scheme from the context's excelFile and columnMap
-      if (excelFile && columnMap) {
-        try {
-          console.log('Processing with fresh Excel data...');
-          markScheme = await parseExcelWithColumnMap(excelFile, columnMap) as MarkSchemeEntry[];
-          console.log(`Got ${markScheme.length} entries from fresh Excel parsing`);
-        } catch (err) {
-          console.warn('Error parsing Excel file, falling back to stored mark scheme:', err);
-          
-          // Fallback to getting from server
-          const markSchemeRes = await fetch(`/api/mark-scheme/${currentTest.id}`, {
-            credentials: 'include'
-          });
-          markScheme = await markSchemeRes.json() as MarkSchemeEntry[];
-        }
-      } else {
-        // Fallback if Excel file or column mapping is not available
-        console.log('No Excel file or column mapping available, using stored mark scheme');
-        const markSchemeRes = await fetch(`/api/mark-scheme/${currentTest.id}`, {
-          credentials: 'include'
-        });
-        markScheme = await markSchemeRes.json() as MarkSchemeEntry[];
-      }
+      // Calculate the score
+      const markSchemeRes = await fetch(`/api/mark-scheme/${currentTest.id}`, {
+        credentials: 'include'
+      });
+      const markScheme = await markSchemeRes.json() as MarkSchemeEntry[];
       
       let pointsEarned = 0;
       let totalPoints = 0;
@@ -258,13 +235,13 @@ export function useTestGraderActions() {
   
   // Get details for the current test
   const { data: testDetails } = useQuery({
-    queryKey: ['/api/tests', currentTest?.id || 'none'],
+    queryKey: currentTest ? [`/api/tests/${currentTest.id}`] : null,
     enabled: !!currentTest
   });
   
   // Get mark scheme for the current test
   const { data: testMarkScheme } = useQuery({
-    queryKey: ['/api/mark-scheme', currentTest?.id || 'none'],
+    queryKey: currentTest ? [`/api/mark-scheme/${currentTest.id}`] : null,
     enabled: !!currentTest
   });
   
