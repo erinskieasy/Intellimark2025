@@ -66,7 +66,9 @@ export class MemStorage implements IStorage {
       id: 1,
       answerRecognitionInstructions: "",
       enhancedRecognition: true,
-      confidenceThreshold: 80
+      confidenceThreshold: 21,
+      temperature: 0.1,
+      topP: 1
     };
   }
   

@@ -29,8 +29,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // State for settings
   const [answerRecognitionInstructions, setAnswerRecognitionInstructions] = useState('');
   const [enhancedRecognition, setEnhancedRecognition] = useState(true);
-  const [confidenceThreshold, setConfidenceThreshold] = useState(80);
-  const [temperature, setTemperature] = useState(0.7);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(21);
+  const [temperature, setTemperature] = useState(0.1);
   const [topP, setTopP] = useState(1);
   
   // Query to get current settings
@@ -41,6 +41,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       setAnswerRecognitionInstructions(data.answerRecognitionInstructions);
       setEnhancedRecognition(data.enhancedRecognition);
       setConfidenceThreshold(data.confidenceThreshold);
+      if (data.temperature !== undefined) setTemperature(data.temperature);
+      if (data.topP !== undefined) setTopP(data.topP);
     }
   });
   
