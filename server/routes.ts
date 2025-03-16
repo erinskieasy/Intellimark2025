@@ -182,7 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post("/pages/:id/process", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const page = await storage.getPages(0).then(pages => pages.find(p => p.id === id));
+      // Get all pages from storage since we don't know which test the page belongs to
+      // This is needed because getPages requires a testId, but we're looking up by page id
+      const allPages = await storage.getPages(0); // Get all pages
+      const page = allPages.find(p => p.id === id);
+      
+      console.log(`Processing page ${id}, found: ${!!page}`);
       
       if (!page) {
         return res.status(404).json({ message: "Page not found" });

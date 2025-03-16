@@ -118,7 +118,15 @@ export class MemStorage implements IStorage {
   }
   
   async getPages(testId: number): Promise<Page[]> {
-    return Array.from(this.pages.values())
+    const allPages = Array.from(this.pages.values());
+    
+    // If testId is 0 or negative, return all pages
+    if (testId <= 0) {
+      return allPages;
+    }
+    
+    // Otherwise, filter by testId and sort by page number
+    return allPages
       .filter(page => page.testId === testId)
       .sort((a, b) => a.pageNumber - b.pageNumber);
   }
