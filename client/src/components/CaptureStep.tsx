@@ -53,33 +53,35 @@ export default function CaptureStep() {
 
   // Handle file upload from gallery
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !currentTest?.id) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0 || !currentTest?.id) return;
 
     toast({
-      title: 'Loading image...',
-      description: 'Please wait while we load your image.',
+      title: 'Loading images...',
+      description: `Processing ${files.length} image${files.length > 1 ? 's' : ''}...`,
     });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageData = e.target?.result as string;
-      captureImageMutation.mutate({
-        imageData,
-        pageNumber: capturedPages.length + 1,
-        testId: currentTest.id!
-      });
-    };
+    files.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageData = e.target?.result as string;
+        captureImageMutation.mutate({
+          imageData,
+          pageNumber: capturedPages.length + index + 1,
+          testId: currentTest.id!
+        });
+      };
 
-    reader.onerror = () => {
-      toast({
-        title: 'Error loading image',
-        description: 'Failed to load the selected image. Please try again with a different image.',
-        variant: 'destructive'
-      });
-    };
+      reader.onerror = () => {
+        toast({
+          title: 'Error loading image',
+          description: `Failed to load image ${index + 1}. Please try again.`,
+          variant: 'destructive'
+        });
+      };
 
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
 
     // Reset the input value so the same file can be selected again
     event.target.value = '';
@@ -208,6 +210,7 @@ export default function CaptureStep() {
           <input
             type="file"
             accept="image/*"
+            multiple
             id="gallery-upload"
             className="hidden"
             onChange={handleFileUpload}
