@@ -19,6 +19,25 @@ export default function ResultsStep() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const { toast } = useToast();
 
+  // Fetch fresh results when component mounts
+  useEffect(() => {
+    const fetchFreshResults = async () => {
+      if (!currentTest?.id) return;
+      
+      try {
+        const detailedRes = await fetch(`/api/results/${currentTest.id}/detailed`, {
+          credentials: 'include'
+        });
+        const freshDetailedResults = await detailedRes.json();
+        setDetailedResults(freshDetailedResults);
+      } catch (error) {
+        console.error('Error fetching fresh results:', error);
+      }
+    };
+
+    fetchFreshResults();
+  }, [currentTest?.id]);
+
   const { 
     testResult, 
     detailedResults, 
