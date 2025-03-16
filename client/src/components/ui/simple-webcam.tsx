@@ -222,6 +222,21 @@ export function SimpleWebcam({ onCapture, className, withFacingToggle = true }: 
             >
               <div className="bg-blue-500 rounded-full w-12 h-12"></div>
             </Button>
+            
+            {/* Camera flip button */}
+            {withFacingToggle && (hasFrontAndBack || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) && (
+              <Button 
+                onClick={toggleFacingMode}
+                variant="secondary"
+                size="sm"
+                className="absolute bottom-0 right-4 rounded-full bg-gray-800 text-white"
+                disabled={!isReady || isInitializing}
+              >
+                <span className="material-icons text-sm">
+                  flip_camera_{facingMode === 'user' ? 'android' : 'ios'}
+                </span>
+              </Button>
+            )}
           </div>
         </>
       )}
