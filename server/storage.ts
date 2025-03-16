@@ -117,6 +117,14 @@ export class MemStorage implements IStorage {
     return newPage;
   }
   
+  async getPage(id: number): Promise<Page> {
+    const page = this.pages.get(id);
+    if (!page) {
+      throw new Error(`Page with id ${id} not found`);
+    }
+    return page;
+  }
+  
   async getPages(testId: number): Promise<Page[]> {
     const allPages = Array.from(this.pages.values());
     
