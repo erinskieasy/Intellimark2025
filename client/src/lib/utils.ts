@@ -136,11 +136,20 @@ export async function parseExcelForPreview(file: File): Promise<{
  * @returns Parsed mark scheme data
  */
 export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumnMap) {
-  return new Promise((resolve, reject) => {
+  return new Promise<any[]>((resolve, reject) => {
     const reader = new FileReader();
     
     reader.onload = (e) => {
       try {
+        // Validate column map first
+        if (!columnMap.questionNumberCol || !columnMap.expectedAnswerCol || !columnMap.pointsCol) {
+          console.error("Invalid column mapping", columnMap);
+          reject(new Error("Column mapping is incomplete. Please select all required columns."));
+          return;
+        }
+        
+        console.log("Using column mapping:", JSON.stringify(columnMap, null, 2));
+        
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         
@@ -149,25 +158,46 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
         const worksheet = workbook.Sheets[firstSheetName];
         
         // Convert to JSON with explicit header mapping
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as Record<string, any>[];
+        
+        if (!jsonData || !Array.isArray(jsonData) || jsonData.length === 0) {
+          reject(new Error("No data found in Excel file or data format is invalid."));
+          return;
+        }
         
         console.log("Raw Excel JSON data (first 3 rows):", JSON.stringify(jsonData.slice(0, 3), null, 2));
         
+        // Check that the selected columns exist in the data
+        const firstRow = jsonData[0];
+        const columnsExist = [
+          columnMap.questionNumberCol in firstRow,
+          columnMap.expectedAnswerCol in firstRow,
+          columnMap.pointsCol in firstRow
+        ];
+        
+        if (!columnsExist[0] || !columnsExist[1] || !columnsExist[2]) {
+          console.error("One or more selected columns don't exist in the data:", {
+            questionNumberExists: columnsExist[0],
+            expectedAnswerExists: columnsExist[1],
+            pointsExists: columnsExist[2],
+            availableColumns: Object.keys(firstRow)
+          });
+          reject(new Error(`One or more selected columns don't exist in the Excel file. Available columns: ${Object.keys(firstRow).join(', ')}`));
+          return;
+        }
+        
         // Validate and normalize data using the column mapping
-        const markSchemeData = jsonData.map((row: any, index) => {
+        const markSchemeData = jsonData.map((row, index) => {
           // Extract values directly from the row using the column mapping
-          // Try to get values with exact column name or normalized version
           let questionNumber = row[columnMap.questionNumberCol];
           let expectedAnswer = row[columnMap.expectedAnswerCol];
           let points = row[columnMap.pointsCol] || 1; // Default to 1 point if not specified
 
-          // Log the raw data for debugging
-          console.log(`Column mapping: `, {
-            questionNumberCol: columnMap.questionNumberCol,
-            expectedAnswerCol: columnMap.expectedAnswerCol,
-            pointsCol: columnMap.pointsCol
+          console.log(`Row ${index + 1} raw values:`, {
+            questionNumber,
+            expectedAnswer,
+            points
           });
-          console.log(`Raw row data:`, row);
           
           // Force conversion for question number
           if (questionNumber === undefined || questionNumber === null) {
@@ -201,31 +231,22 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
             points = 1;
           }
           
-          console.log(`Row ${index} processing:`, {
-            questionNumber,
-            expectedAnswer,
-            expectedAnswerType: typeof expectedAnswer,
-            expectedAnswerValue: String(expectedAnswer),
-            points
-          });
-          
-          // Create a plain object without going through schema validation yet
-          // This preserves the original data for debugging
-          const rawEntry = {
-            questionNumber: typeof questionNumber === 'number' ? 
-              questionNumber : 
-              parseInt(String(questionNumber).replace(/\D/g, '')), // Strip non-digits for better number parsing
-            expectedAnswer: String(expectedAnswer || ""), // Convert to string even if undefined
-            points: typeof points === 'number' ? 
-              points : 
-              (parseInt(String(points).replace(/\D/g, '')) || 1) // Strip non-digits, default to 1
-          };
-          
-          console.log(`Row ${index} normalized:`, rawEntry);
-          
-          // Validate the extracted data
+          // Create a validated object
           try {
-            return markSchemeRowSchema.parse(rawEntry);
+            // Convert types as needed before validation
+            const convertedData = {
+              questionNumber: typeof questionNumber === 'number' ? 
+                questionNumber : 
+                parseInt(String(questionNumber).replace(/\D/g, '') || `${index + 1}`), // Strip non-digits for better number parsing
+              expectedAnswer: String(expectedAnswer || ""), // Convert to string even if undefined
+              points: typeof points === 'number' ? 
+                points : 
+                (parseInt(String(points).replace(/\D/g, '') || "1") || 1) // Strip non-digits, default to 1
+            };
+            
+            console.log(`Row ${index + 1} converted:`, convertedData);
+            
+            return markSchemeRowSchema.parse(convertedData);
           } catch (error) {
             console.error(`Row ${index + 1} validation error:`, error);
             throw new Error(`Row ${index + 1} has invalid data: ${error instanceof Error ? error.message : String(error)}`);
@@ -236,9 +257,16 @@ export async function parseExcelWithColumnMap(file: File, columnMap: ExcelColumn
         console.log("Final processed mark scheme data (first 3 entries):", 
           JSON.stringify(markSchemeData.slice(0, 3), null, 2));
         
+        // Final validation: check if we got any data
+        if (!markSchemeData || markSchemeData.length === 0) {
+          reject(new Error("No valid data could be parsed from the Excel file."));
+          return;
+        }
+        
         resolve(markSchemeData);
       } catch (error) {
-        reject(new Error(`Failed to parse Excel file with column mapping: ${error instanceof Error ? error.message : String(error)}`));
+        console.error("Failed to parse Excel file:", error);
+        reject(new Error(`Failed to parse Excel file: ${error instanceof Error ? error.message : String(error)}`));
       }
     };
     

@@ -90,12 +90,18 @@ export default function MarkSchemeStep() {
         
         // Open column mapping dialog if we have columns
         if (columns.length > 0) {
-          // Initialize empty column mapping
-          setColumnMapping({
+          // Initialize empty column mapping - make sure it's completely empty
+          const emptyMapping: ExcelColumnMap = {
             questionNumberCol: '',
             expectedAnswerCol: '',
             pointsCol: ''
-          });
+          };
+          
+          // Log the columns we found
+          console.log("Excel file column detection: Found columns:", columns);
+          
+          // Set the empty mapping
+          setColumnMapping(emptyMapping);
           
           setColumnMappingDialogOpen(true);
         }
