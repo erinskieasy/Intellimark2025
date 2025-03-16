@@ -103,9 +103,9 @@ export default function ResultsStep() {
   if (!testResult) {
     return (
       <div className="bg-white rounded-lg shadow-md p-5">
-        {/* Mark Scheme Preview in empty state */}
+        {/* Mark Scheme Preview in empty state - using fresh Excel data */}
         <div className="mb-5">
-          <MarkSchemePreview markScheme={markScheme} />
+          <MarkSchemePreview />
         </div>
         
         <div className="text-center py-8">
@@ -136,9 +136,9 @@ export default function ResultsStep() {
         </Button>
       </div>
       
-      {/* Mark Scheme Preview */}
+      {/* Mark Scheme Preview - using fresh Excel data */}
       <div className="mb-5">
-        <MarkSchemePreview markScheme={markScheme} />
+        <MarkSchemePreview />
       </div>
       
       {/* Score Summary */}

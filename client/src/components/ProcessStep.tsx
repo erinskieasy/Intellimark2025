@@ -51,9 +51,9 @@ export default function ProcessStep() {
         The app will now process the images to extract student answers using AI.
       </p>
       
-      {/* Mark Scheme Preview */}
+      {/* Mark Scheme Preview - using fresh Excel data */}
       <div className="mb-5">
-        <MarkSchemePreview markScheme={markScheme} />
+        <MarkSchemePreview />
       </div>
       
       {/* Processing Status */}
