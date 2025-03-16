@@ -225,6 +225,24 @@ export default function CaptureStep() {
               </span>
             </Button>
           </label>
+          {capturedPages.length > 0 && (
+            <Button
+              variant="outline"
+              className="ml-3 bg-red-100 hover:bg-red-200 text-red-600"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete all captured images?')) {
+                  clearCapturedPages();
+                  toast({
+                    title: 'Images cleared',
+                    description: 'All captured images have been removed.',
+                  });
+                }
+              }}
+            >
+              <span className="material-icons mr-1 text-sm">delete_sweep</span>
+              Clear All
+            </Button>
+          )}
         </div>
       </div>
       
